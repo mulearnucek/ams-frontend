@@ -19,7 +19,7 @@ export default function AuthenticationPage() {
           />
           <div className="absolute inset-0 bg-black/40" />
           <div className="relative z-20 flex items-center text-lg font-medium">
-            <Image src="/logo.svg" alt="Logo" width={56} height={56} className="mr-2 h-10 w-auto lg:h-14 text-white" />
+            <Image src="/logo.svg" alt="Logo" width={56} height={56} className="mr-2 h-10 w-auto lg:h-14 brightness-0 invert" />
           </div>
           <div className="relative z-20 mt-auto hidden lg:block">
             <blockquote className="leading-normal text-balance">

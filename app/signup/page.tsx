@@ -171,7 +171,7 @@ export default function SignUpPage() {
           <CardHeader className="space-y-1">
             <div className="absolute bottom-4 left-4 text-sm text-gray-500">Built with 🔥 by μlearn UCEK</div>
             <div className="flex items-center justify-center">
-              <Image src="/logo.svg" alt="Logo" width={56} height={56} className="h-14 w-auto" />
+              <Image src="/logo.svg" alt="Logo" width={56} height={56} className="mr-2 h-10 w-auto lg:h-14 brightness-0 invert" />
             </div>
             <CardTitle className="text-2xl font-bold text-center">Sign up</CardTitle>
             <CardDescription className="text-center">Create your account by selecting your role</CardDescription>
