@@ -10,10 +10,13 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth-client"
+import { useRouter } from "next/navigation"
 
 export function ProfileBtn() {
+    const router = useRouter();
     const handleSignOut = async () => {
         await authClient.signOut()
+        router.replace("/")
     }
 
     return (
