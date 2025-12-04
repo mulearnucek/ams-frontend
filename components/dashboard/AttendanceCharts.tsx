@@ -62,8 +62,8 @@ const AttendanceCharts = () => {
                 }) => {
                   const RADIAN = Math.PI / 180;
                   const radius = 25 + innerRadius + (outerRadius - innerRadius);
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  const x = cx + radius * Math.cos(-(midAngle ?? 0) * RADIAN);
+                  const y = cy + radius * Math.sin(-(midAngle ?? 0) * RADIAN);
 
                   return (
                     <text
