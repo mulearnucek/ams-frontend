@@ -15,7 +15,7 @@ export default function DashboardPage() {
             router.push("/signin")
         }
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/api/user`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
             credentials: "include",
         }).then(async (res) => {
             if (res.status === 422) {

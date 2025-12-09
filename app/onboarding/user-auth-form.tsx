@@ -171,7 +171,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     setError(null);
     try {
       // Submit the completion data to backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/api/user`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

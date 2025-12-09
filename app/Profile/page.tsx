@@ -15,7 +15,7 @@ export default function ProfilePage() {
     if(isPending) return;
     if(!session) return router.push("/signin?r=/profile");
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/api/user`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
       credentials: "include",
     }).then(async (res) => {
       if (res.ok) {
