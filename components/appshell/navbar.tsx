@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "./theme_toggle";
 import { ProfileBtn } from "./profile";
 import Logo from "../logo";
