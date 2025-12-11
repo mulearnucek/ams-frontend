@@ -8,18 +8,21 @@ type User = {
   id: string;
   email: string;
   name: string;
+  image?: string;
   role: 'student' | 'teacher' | 'parent';
   firstName?: string;
   lastName?: string;
-  phone?: string;
+  phone?: number;
   gender?: string;
   admissionNumber?: string;
-  admissionYear?: string;
+  admissionYear?: number;
   candidateCode?: string;
   department?: string;
   dateOfBirth?: string;
   designation?: string;
   dateOfJoining?: string;
+  createdAt?: string;
+  updatedAt?: string;
   [key: string]: any;
 };
 
@@ -76,7 +79,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Failed to fetch user data');
       }
 
-      const userData = await response.json();
+      const responseData = await response.json();
+      const userData = {
+        id: responseData.data.user._id,
+        email: responseData.data.user.email,
+        name: responseData.data.user.name,
+        image: responseData.data.user.image,
+        role: responseData.data.user.role,
+        firstName: responseData.data.user.first_name,
+        lastName: responseData.data.user.last_name,
+        phone: responseData.data.user.phone,
+        gender: responseData.data.user.gender,
+        admissionNumber: responseData.data.adm_number,
+        admissionYear: responseData.data.adm_year,
+        candidateCode: responseData.data.candidate_code,
+        department: responseData.data.department,
+        dateOfBirth: responseData.data.date_of_birth,
+        createdAt: responseData.data.user.createdAt,
+        updatedAt: responseData.data.user.updatedAt,
+      };
       setUser(userData);
     } catch (err) {
       console.error('Error fetching user:', err);
