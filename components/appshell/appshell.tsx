@@ -2,7 +2,7 @@
 
 import Navbar from "./navbar";
 import { useEffect, useState } from "react";
-import { Book, CalendarDays, Home, Settings } from "lucide-react"
+import { Bell, BellRing, Book, CalendarDays, Home, Settings } from "lucide-react"
 import Dock from '@/components/appshell/Dock';
 import { useRouter } from 'next/navigation';
 import { Avatar as AvatarIcon, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,8 +23,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const items = [
     { icon: <Home size={18} />, label: 'Home', onClick: () => router.push('/dashboard')  },
-    { icon: <CalendarDays size={18} />, label: 'Archive', onClick: () => alert('Archive!') },
-    { icon: <Book size={18} />, label: 'Courses', onClick: () => alert('Courses!') },
+    { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
+    { icon: <Book size={18} />, label: 'Assignments', onClick: () => router.push('/dashboard/assignments') },
     { icon: <Settings size={18} />, label: 'Settings', onClick: () => alert('Settings!') },
     { 
       icon: (
@@ -36,7 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <Avatar {...genConfig(user?.email)} sex={user?.gender == "male" ? "man" : "woman"} className="h-6 w-6 sm:h-8 sm:w-8" />
       ), 
       label: 'Profile', 
-      onClick: () => router.push('/profile') 
+      onClick: () => router.push('/dashboard/profile') 
     },
   ];
 
@@ -55,7 +55,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         />
       <main className="flex-1 flex flex-col overflow-hidden">
         <Navbar/>
-        <div className="flex-1 p-4 overflow-auto">
+        <div className="flex-1 overflow-auto sm:pb-20">
           {children}
         </div>
       </main>

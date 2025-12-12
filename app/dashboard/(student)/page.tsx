@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth-context";
 import GreetingHeader from "@/components/student/greeting-header";
 import AttendanceOverview from "@/components/student/attendance-overview";
 import MarksOverview from "@/components/student/marks-overview";
-import AssignmentsList from "@/components/student/assignments-list";
 import NotificationsList from "@/components/student/notifications-list";
 
 // TODO: Replace with actual API calls
@@ -91,12 +90,10 @@ export default function StudentDashboardPage() {
         {/* Left Column */}
         <div className="space-y-6">
           <AttendanceOverview attendance={dummyData.attendance} />
-          <MarksOverview marks={dummyData.marks} />
         </div>
 
         {/* Right Column */}
         <div className="space-y-6">
-          <AssignmentsList assignments={dummyData.assignments} />
           <NotificationsList notifications={dummyData.notifications} />
         </div>
       </div>

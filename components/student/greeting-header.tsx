@@ -13,10 +13,10 @@ const getGreeting = () => {
   if (hour >= 5 && hour < 12) {
     return {
       text: "Good Morning",
-      gradient: "from-sky-400 via-blue-200 to-orange-100",
-      textColor: "text-slate-800",
-      subTextColor: "text-slate-700",
-      cloudColor: "text-white",
+      gradient: "from-sky-400 via-blue-200 to-orange-100 dark:from-indigo-800 dark:via-purple-700 dark:to-orange-500",
+      textColor: "text-slate-800 dark:text-white",
+      subTextColor: "text-slate-700 dark:text-orange-100",
+      cloudColor: "text-white dark:text-white/30",
       cloudOpacity: 0.9,
       isNight: false,
       celestial: "sun" as const
@@ -24,10 +24,10 @@ const getGreeting = () => {
   } else if (hour >= 12 && hour < 16) {
     return {
       text: "Good Afternoon",
-      gradient: "from-blue-500 via-sky-400 to-blue-200",
+      gradient: "from-blue-500 via-sky-400 to-blue-200 dark:from-blue-800 dark:via-sky-700 dark:to-cyan-600",
       textColor: "text-white",
-      subTextColor: "text-blue-50",
-      cloudColor: "text-white",
+      subTextColor: "text-blue-50 dark:text-sky-100",
+      cloudColor: "text-white dark:text-white/30",
       cloudOpacity: 0.8,
       isNight: false,
       celestial: "sun" as const
@@ -35,10 +35,10 @@ const getGreeting = () => {
   } else if (hour >= 16 && hour < 19) {
     return {
       text: "Good Evening",
-      gradient: "from-indigo-500 via-purple-500 to-orange-300",
+      gradient: "from-indigo-500 via-purple-500 to-orange-300 dark:from-purple-900 dark:via-pink-800 dark:to-orange-600",
       textColor: "text-white",
-      subTextColor: "text-indigo-100",
-      cloudColor: "text-pink-100",
+      subTextColor: "text-indigo-100 dark:text-pink-100",
+      cloudColor: "text-pink-100 dark:text-pink-200/20",
       cloudOpacity: 0.6,
       isNight: false,
       celestial: "sun" as const
@@ -46,10 +46,10 @@ const getGreeting = () => {
   } else if (hour >= 19 && hour < 24) {
     return {
       text: "Good Night",
-      gradient: "from-slate-900 via-indigo-950 to-slate-900",
+      gradient: "from-slate-900 via-indigo-950 to-slate-900 dark:from-slate-950 dark:via-indigo-900 dark:to-slate-900",
       textColor: "text-indigo-50",
       subTextColor: "text-indigo-200",
-      cloudColor: "text-slate-600",
+      cloudColor: "text-slate-600 dark:text-slate-600",
       cloudOpacity: 0.2,
       isNight: true,
       celestial: "moon" as const
@@ -57,10 +57,10 @@ const getGreeting = () => {
   } else {
     return {
       text: "Good Night",
-      gradient: "from-black via-slate-900 to-slate-800",
+      gradient: "from-black via-slate-900 to-slate-800 dark:from-black dark:via-slate-900 dark:to-slate-800",
       textColor: "text-slate-50",
       subTextColor: "text-slate-400",
-      cloudColor: "text-slate-700",
+      cloudColor: "text-slate-700 dark:text-slate-700",
       cloudOpacity: 0.1,
       isNight: true,
       celestial: "moon" as const
@@ -89,8 +89,31 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
   if (!mounted) return null;
 
   return (
-    <div className={`relative overflow-hidden rounded-3xl bg-linear-to-br ${greeting.gradient} p-8 md:p-10 mb-6 shadow-lg transition-colors duration-1000`}>
+    <div className={`relative overflow-hidden -mx-4 -mt-4 md:mx-0 md:mt-0 rounded-b-2xl md:rounded-3xl bg-linear-to-br ${greeting.gradient} p-8 md:p-10 mb-6 shadow-lg transition-colors duration-1000`}>
       
+      {/* Celestial Body */}
+      <motion.div 
+        className="absolute top-8 right-8 md:right-16 pointer-events-none"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 1 }}
+      >
+        {greeting.celestial === 'sun' ? (
+           <div className="relative">
+             <div className="w-16 h-16 md:w-24 md:h-24 bg-yellow-300 rounded-full blur-2xl opacity-60 animate-pulse absolute top-0 left-0" />
+             <div className="w-16 h-16 md:w-24 md:h-24 bg-linear-to-br from-yellow-100 to-yellow-400 rounded-full shadow-lg relative" />
+           </div>
+        ) : (
+           <div className="relative">
+             <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full blur-xl opacity-30 absolute top-0 left-0" />
+             <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] relative" />
+             {/* Craters */}
+             <div className="absolute top-3 left-3 w-2 h-2 bg-slate-200 rounded-full opacity-50 z-20" />
+             <div className="absolute bottom-4 right-4 w-3 h-3 bg-slate-200 rounded-full opacity-50 z-20" />
+           </div>
+        )}
+      </motion.div>
+
       {/* Background Cloud (Behind Sun) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
          <motion.div 
@@ -102,29 +125,6 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
             <CloudSVG className="w-full h-full" />
          </motion.div>
       </div>
-
-      {/* Celestial Body */}
-      <motion.div 
-        className="absolute top-8 right-8 md:right-16 pointer-events-none"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 1 }}
-      >
-        {greeting.celestial === 'sun' ? (
-           <div className="relative">
-             <div className="w-16 h-16 md:w-24 md:h-24 bg-yellow-300 rounded-full blur-2xl opacity-60 animate-pulse absolute top-0 left-0" />
-             <div className="w-16 h-16 md:w-24 md:h-24 bg-linear-to-br from-yellow-100 to-yellow-400 rounded-full shadow-lg relative z-10" />
-           </div>
-        ) : (
-           <div className="relative">
-             <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full blur-xl opacity-30 absolute top-0 left-0" />
-             <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-100 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.3)] relative z-10" />
-             {/* Craters */}
-             <div className="absolute top-3 left-3 w-2 h-2 bg-slate-200 rounded-full opacity-50 z-20" />
-             <div className="absolute bottom-4 right-4 w-3 h-3 bg-slate-200 rounded-full opacity-50 z-20" />
-           </div>
-        )}
-      </motion.div>
 
       {/* Stars for night */}
       {greeting.isNight && (
@@ -174,15 +174,18 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-            <h2 className={`text-2xl md:text-4xl font-bold ${greeting.textColor} tracking-tight mb-2 drop-shadow-sm`}>
+            <h2 className={`text-xl md:text-4xl font-bold ${greeting.textColor} tracking-tight mb-1 sm:mb-2 drop-shadow-sm`}>
                 {greeting.text}, {userName}!
             </h2>
 
-            <p className={`text-sm md:text-base ${greeting.subTextColor} drop-shadow-sm`}>
-                {new Date().toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                })} -  {new Date().toLocaleDateString('en-US', {
+            <p className={`text-xs md:text-base ${greeting.subTextColor} drop-shadow-sm flex gap-1`}>
+                <span className="hidden sm:block">
+                     {new Date().toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                    }) + " -"}
+                </span>
+                {new Date().toLocaleDateString('en-US', {
                     weekday: 'long',
                     month: 'long',
                     day: 'numeric',

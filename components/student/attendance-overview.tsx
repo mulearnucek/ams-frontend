@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { get } from "http";
 import { CalendarCheck } from "lucide-react";
 
 type SubjectAttendance = {
@@ -15,6 +16,44 @@ type AttendanceOverviewProps = {
   attendance: SubjectAttendance[];
 };
 
+const AttendanceGauge = ({ percentage, colorClass }: { percentage: number, colorClass: string }) => {
+  const radius = 40;
+  const circumference = Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative flex flex-col items-center justify-center">
+      <div className="relative w-48 h-24 overflow-hidden">
+        <svg className="w-full h-full" viewBox="0 0 100 50">
+          <path
+            d="M10,50 A40,40 0 0,1 90,50"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="8"
+            strokeLinecap="round"
+            className="text-muted/20"
+          />
+          <path
+            d="M10,50 A40,40 0 0,1 90,50"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className={`transition-all duration-1000 ease-out ${colorClass}`}
+          />
+        </svg>
+        <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-end h-full pb-1">
+            <span className={`text-3xl font-bold ${colorClass}`}>
+                {percentage}%
+            </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function AttendanceOverview({ attendance }: AttendanceOverviewProps) {
   const totalAttended = attendance.reduce((sum, item) => sum + item.attendedClasses, 0);
   const totalClasses = attendance.reduce((sum, item) => sum + item.totalClasses, 0);
@@ -25,6 +64,12 @@ export default function AttendanceOverview({ attendance }: AttendanceOverviewPro
     if (percentage >= 60) return "text-yellow-600 dark:text-yellow-400";
     return "text-red-600 dark:text-red-400";
   };
+
+  const getAttendeanceMessage = (percentage: number) => {
+    if (percentage >= 75) return "You're on track! Keep it up.";
+    if (percentage >= 60) return "Attend more classes to improve.";
+    return "Urgent: Attendance critically low.";
+  }
 
   return (
     <Card>
@@ -37,16 +82,26 @@ export default function AttendanceOverview({ attendance }: AttendanceOverviewPro
       <CardContent className="space-y-4">
         {/* Overall Attendance */}
         <div className="p-4 bg-muted/50 rounded-lg">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium">Overall Attendance</span>
-            <span className={`text-2xl font-bold ${getAttendanceColor(overallPercentage)}`}>
-              {overallPercentage}%
-            </span>
+          <div className="bloc mb-2">
+             <AttendanceGauge percentage={overallPercentage} colorClass={getAttendanceColor(overallPercentage)} />
+             <p className="text-center text-xs text-muted-foreground mt-1">
+               {getAttendeanceMessage(overallPercentage)}
+             </p>
           </div>
-          <Progress value={overallPercentage} className="h-2" />
-          <p className="text-xs text-muted-foreground mt-1">
-            {totalAttended} / {totalClasses} classes attended
-          </p>
+
+          {/* Desktop Progress */}
+          <div className=" md:block">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium">Overall Attendance</span>
+              <span className={`text-2xl font-bold ${getAttendanceColor(overallPercentage)}`}>
+                {overallPercentage}%
+              </span>
+            </div>
+            <Progress value={overallPercentage} className="h-2" />
+            <p className="text-xs text-muted-foreground mt-1">
+              {totalAttended} / {totalClasses} classes attended
+            </p>
+          </div>
         </div>
 
         {/* Subject-wise Attendance */}
