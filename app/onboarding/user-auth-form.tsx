@@ -119,10 +119,10 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
-    if (!formData.firstName.trim() || formData.firstName.length < 2) 
-      newErrors.firstName = 'First name must be at least 2 characters';
-    if (!formData.lastName.trim() || formData.lastName.length < 2) 
-      newErrors.lastName = 'Last name must be at least 2 characters';
+    if (!formData.firstName.trim() || formData.firstName.length < 1) 
+      newErrors.firstName = 'First name must be at least 1 characters';
+    if (!formData.lastName.trim() || formData.lastName.length < 1) 
+      newErrors.lastName = 'Last name must be at least 1 characters';
     if (!formData.phone.trim() || formData.phone.length < 10) 
       newErrors.phone = 'Phone number must be at least 10 digits';
     if (!formData.gender) newErrors.gender = 'Please select a gender';
