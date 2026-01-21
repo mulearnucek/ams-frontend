@@ -107,6 +107,13 @@ export interface UpdateUserData {
   };
 }
 
+export interface CreateUserData {
+  name: string;
+  email: string;
+  role?: UserRole;
+  password?: string;
+}
+
 /**
  * List users with pagination, filtering, and search (admin only)
  * @param params - Query parameters for filtering and pagination
@@ -187,4 +194,21 @@ export async function deleteUserById(id: string): Promise<void> {
     const error = await response.json();
     throw new Error(error.message || 'Failed to delete user');
   }
+}
+
+/**
+ * Create multiple users in bulk (admin only)
+ */
+export async function createUsersBulk(users: CreateUserData[]): Promise<ApiResponse<any>> {
+  const response = await fetch(`${API_BASE}/user/bulk`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({ users }),
+  });
+
+  const result: ApiResponse<any> = await response.json();
+  return result;
 }

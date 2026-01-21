@@ -29,6 +29,7 @@ Update `.github/copilot-instructions.md` immediately after:
 ## Architecture & Boundaries
 - **Frontend Only:** DO NOT create API routes (`app/api/...`) inside Next.js.
 - **Backend Integration:**
+  - **API Documentation:** **ALWAYS reference the complete API documentation at https://mulearnucek.github.io/ams-backend/ when implementing features or making API calls.**
   - Use the external API for all data operations.
   - If a required API endpoint is missing from documentation, **STOP** and ask the user for the request/response format. Do not mock or workaround without approval.
   - **API Response Format:** The backend returns responses in the format:
@@ -111,7 +112,7 @@ Update `.github/copilot-instructions.md` immediately after:
   - `lib/auth-context.tsx` - React context for auth state (use `useAuth()` hook)
   - `lib/utils.ts` - Utility functions (cn() helper)
   - `lib/dummy-data.ts` - Mock data for development
-  - `lib/api/user.ts` - User API service functions (listUsers, getUserById, updateUserById, deleteUserById)
+  - `lib/api/user.ts` - User API service functions (listUsers, getUserById, createUser, updateUserById, deleteUserById)
 
 ## Dashboard Features by Role
 
@@ -131,16 +132,17 @@ Update `.github/copilot-instructions.md` immediately after:
   - Role-based user listing with tabs (Students, Teachers, Parents, Admins, HODs, Principals, Staff)
   - Server-side pagination using `/user/list` API endpoint
   - Real-time search across name, email, first name, and last name
+  - Add new users with role-specific fields (student, teacher, parent, staff, etc.)
   - View user details with complete profile information
   - Edit user information with role-specific fields
   - Delete users with confirmation dialog
   - Data table with responsive design
 - **Components:**
   - `page.tsx` - Main users list page with data table and pagination
-  - `view-user-dialog.tsx` - Modal for viewing complete user details
-  - `edit-user-dialog.tsx` - Modal for editing user information
+  - `add-user-dialog.tsx` - Modal for creating new users with role-based form sections
+  - `user-dialog.tsx` - Combined modal for viewing and editing user information
   - `delete-user-dialog.tsx` - Confirmation dialog for user deletion
-- **API Integration:** Uses `lib/api/user.ts` service functions with `/user/list` endpoint for efficient data fetching
+- **API Integration:** Uses `lib/api/user.ts` service functions with `/user/list` (GET) for fetching and `/user` (POST) for creating users
 
 All components are responsive with mobile-first design and support dark/light modes.
 

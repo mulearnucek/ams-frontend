@@ -28,6 +28,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDialog } from "./user-dialog";
 import { DeleteUserDialog } from "./delete-user-dialog";
+import { AddUserDialog } from "./add-user-dialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -55,6 +56,7 @@ export default function UsersPage() {
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"view" | "edit">("view");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
 
   // Fetch users when role, page, or active search changes
   useEffect(() => {
@@ -188,7 +190,7 @@ export default function UsersPage() {
                 View, edit, and manage all users in the system
               </CardDescription>
             </div>
-            <Button className="w-full md:w-auto">
+            <Button className="w-full md:w-auto cursor-pointer" onClick={() => setAddUserDialogOpen(true)}>
               <UserPlus className="mr-2 h-4 w-4" />
               Add New User
             </Button>
@@ -403,6 +405,12 @@ export default function UsersPage() {
           />
         </>
       )}
+
+      <AddUserDialog
+        open={addUserDialogOpen}
+        onOpenChange={setAddUserDialogOpen}
+        onSuccess={fetchUsers}
+      />
     </div>
   );
 }

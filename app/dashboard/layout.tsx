@@ -2,7 +2,7 @@
 
 import Navbar from "@/components/appshell/navbar";
 import { useEffect, useState, useMemo } from "react";
-import { Bell, BellRing, Book, CalendarDays, Home, Settings, Users } from "lucide-react";
+import { Bell, BellRing, Book, BookOpen, CalendarDays, Home, Settings, Users } from "lucide-react";
 import Dock from '@/components/appshell/Dock';
 import { useRouter } from 'next/navigation';
 import { Avatar as AvatarIcon, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,7 +33,8 @@ export default function DashboardLayout({
     // Admin-specific items
     if (user?.role === 'admin' || user?.role === 'principal') {
       baseItems.push(
-        { icon: <Users size={18} />, label: 'Users', onClick: () => router.push('/dashboard/users') }
+        { icon: <Users size={18} />, label: 'Users', onClick: () => router.push('/dashboard/users') },
+        { icon: <BookOpen size={18} />, label: 'Academics', onClick: () => router.push('/dashboard/academics') },
       );
     }
 
