@@ -46,6 +46,24 @@ export interface AttendanceSession {
   batch: string;
 }
 
+export interface Class {
+  id: string;
+  courseName: string;
+  courseCode: string;
+  batch: string;
+  year: number;
+  section: string;
+  studentCount: number;
+  schedule: { day: string; time: string }[];
+}
+
+export interface TeacherStudent {
+  id: string;
+  rollNumber: string;
+  name: string;
+  currentAttendance: number;
+}
+
 // --- DUMMY DATA GENERATION ---
 
 const SUBJECTS: Subject[] = [
@@ -114,6 +132,69 @@ SUBJECTS.forEach(sub => {
     }
 })
 
+// Teacher-related dummy data
+const CLASSES: Class[] = [
+  {
+    id: "CLS001",
+    courseName: "Data Structures and Algorithms",
+    courseCode: "CS301",
+    batch: "IT",
+    year: 3,
+    section: "A",
+    studentCount: 45,
+    schedule: [
+      { day: "Monday", time: "9:00 AM - 10:30 AM" },
+      { day: "Wednesday", time: "2:00 PM - 3:30 PM" },
+    ],
+  },
+  {
+    id: "CLS002",
+    courseName: "Database Management Systems",
+    courseCode: "CS302",
+    batch: "CSE",
+    year: 3,
+    section: "B",
+    studentCount: 50,
+    schedule: [
+      { day: "Tuesday", time: "10:30 AM - 12:00 PM" },
+      { day: "Thursday", time: "9:00 AM - 10:30 AM" },
+    ],
+  },
+  {
+    id: "CLS003",
+    courseName: "Operating Systems",
+    courseCode: "CS303",
+    batch: "IT",
+    year: 3,
+    section: "B",
+    studentCount: 42,
+    schedule: [
+      { day: "Monday", time: "2:00 PM - 3:30 PM" },
+      { day: "Friday", time: "9:00 AM - 10:30 AM" },
+    ],
+  },
+  {
+    id: "CLS004",
+    courseName: "Computer Networks",
+    courseCode: "CS304",
+    batch: "CSE",
+    year: 3,
+    section: "A",
+    studentCount: 48,
+    schedule: [
+      { day: "Wednesday", time: "9:00 AM - 10:30 AM" },
+      { day: "Friday", time: "2:00 PM - 3:30 PM" },
+    ],
+  },
+];
+
+const TEACHER_STUDENTS: TeacherStudent[] = Array.from({ length: 50 }, (_, i) => ({
+  id: `STU${String(i + 1).padStart(3, '0')}`,
+  rollNumber: `IT21${String(i + 1).padStart(3, '0')}`,
+  name: `Student ${String.fromCharCode(65 + (i % 26))} ${i + 1}`,
+  currentAttendance: Math.floor(Math.random() * 30) + 65, // Random attendance 65-95%
+}));
+
 
 // --- DATA ACCESSOR FUNCTIONS ---
 
@@ -122,6 +203,8 @@ export const getAssignments = () => ASSIGNMENTS;
 export const getStudents = () => STUDENTS;
 export const getGrades = () => GRADES;
 export const getAttendanceSessions = () => SESSIONS;
+export const getClasses = () => CLASSES;
+export const getTeacherStudents = () => TEACHER_STUDENTS;
 
 export const getPersonalizedStudentData = (studentId: string = 'STU001') => {
   const student = STUDENTS.find(s => s.id === studentId);
