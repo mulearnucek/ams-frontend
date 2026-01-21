@@ -2,7 +2,7 @@
 
 import Navbar from "@/components/appshell/navbar";
 import { useEffect, useState, useMemo } from "react";
-import { Bell, BellRing, Book, BookOpen, CalendarDays, Home, Settings, Users } from "lucide-react";
+import { Bell, BellRing, Book, BookOpen, CalendarDays, Home, Settings, Users, ClipboardCheck } from "lucide-react";
 import Dock from '@/components/appshell/Dock';
 import { useRouter } from 'next/navigation';
 import { Avatar as AvatarIcon, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,6 +35,20 @@ export default function DashboardLayout({
       baseItems.push(
         { icon: <Users size={18} />, label: 'Users', onClick: () => router.push('/dashboard/users') },
         { icon: <BookOpen size={18} />, label: 'Academics', onClick: () => router.push('/dashboard/academics') },
+      );
+    }
+
+    // Teacher-specific items
+    if (user?.role === 'teacher' || user?.role === 'hod') {
+      baseItems.push(
+        { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
+      );
+    }
+
+    // Teacher-specific items
+    if (user?.role === 'teacher' || user?.role === 'hod') {
+      baseItems.push(
+        { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
       );
     }
 
