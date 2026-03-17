@@ -30,13 +30,10 @@ export default function Home() {
         <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 font-sans dark:bg-black">
             <Logo />
 
-            <main className="flex w-full max-w-3xl flex-col items-center justify-center px-16 py-8 bg-white dark:bg-black">
+            <main className="flex w-full max-w-3xl flex-col items-center justify-center px-16 py-8">
                 <div className="flex items-center gap-4 mt-4">
                     <Link href="/signin">
-                        <Button className="bg-secondary">Sign In</Button>
-                    </Link>
-                    <Link href="/signup">
-                        <Button className="bg-secondary">Sign Up</Button>
+                        <Button variant={"outline"}>Sign In</Button>
                     </Link>
                 </div>
             </main>

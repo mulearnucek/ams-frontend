@@ -15,13 +15,11 @@ import { authClient } from "@/lib/auth-client"
 import { FormControl, FormField, FormItem, FormLabel, FormMessage, Form } from "@/components/ui/form"
 
 const formSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   password: z.string().min(1, "Password is required"),
 })
 
-type UserAuthFormProps = React.HTMLAttributes<HTMLDivElement>
-
-export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
+export function SignInUserAuthForm({ className, redirectUrl }: {className?: string; redirectUrl?: string}) {
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const router = useRouter()
@@ -36,13 +34,12 @@ export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    setError(null)
-    try {
       const { error } = await authClient.signIn.email({
         email: values.email,
         password: values.password,
-        callbackURL: window.location.origin + "/dashboard",
+        callbackURL: window.location.origin + (redirectUrl || "/dashboard"),
       })
+    try {
       if (error) {
         setError(error.message || "An error occurred during sign in")
       } else {
@@ -65,7 +62,7 @@ export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
     try {
       const { error } = await authClient.signIn.social({
         provider: "google",
-        callbackURL: window.location.origin + "/dashboard",
+        callbackURL: window.location.origin + (redirectUrl || "/dashboard"),
       })
       if (error) {
         setError(error.message || "An error occurred during Google sign in")
@@ -82,7 +79,7 @@ export function SignInUserAuthForm({ className, ...props }: UserAuthFormProps) {
   }
 
   return (
-    <div className={cn("grid gap-6", className)} {...props}>
+    <div className={cn("grid gap-6", className)}>
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

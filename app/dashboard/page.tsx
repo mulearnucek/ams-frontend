@@ -1,32 +1,20 @@
 "use client"
-
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { authClient } from "@/lib/auth-client"
-import { Loader2, User, Wrench } from "lucide-react"
-import StudentDashboardPage from "./student"
+import { useAuth } from "@/lib/auth-context";
+import StudentDashboardPage from "./(student)/home"
+import AdminDashboardPage from "./(admin)/home";
+import TeacherDashboardPage from "./(teacher)/home";
 
 export default function DashboardPage() {
-    const { data: session, isPending } = authClient.useSession()
-    const router = useRouter()
+    const {user } = useAuth();
 
-    useEffect(() => {
-        if (!isPending && !session) {
-            router.push("/signin")
-        }
-    }, [session, isPending, router])
+    const role = user?.role
 
-    if (isPending) {
-        return (
-            <div className="flex min-h-screen items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        )
-    }
+    if (role === "student") return <StudentDashboardPage />
+    if(role === "admin" || role === "principal") return <AdminDashboardPage />
+    if(role === "teacher" || role === "hod") return <TeacherDashboardPage />
 
-    if (!session) {
-        return null
-    }
-
-    return <StudentDashboardPage session={session} />
+    return <div className="container mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-6">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p>Your role "{role}" does not have a dashboard implemented yet.</p>
+    </div>
 }

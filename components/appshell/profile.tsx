@@ -19,6 +19,10 @@ export function ProfileBtn() {
         router.replace("/")
     }
 
+    const handleProfileClick = () => {
+        router.push("/dashboard/profile")
+    }
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -28,7 +32,7 @@ export function ProfileBtn() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem>Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleProfileClick}>Profile</DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
