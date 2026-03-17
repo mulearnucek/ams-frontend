@@ -10,6 +10,9 @@ import { ArrowLeft, Calendar, Clock, Users, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { getAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
 
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+
 export default function SessionAttendancePage() {
   const params = useParams();
   const router = useRouter();
