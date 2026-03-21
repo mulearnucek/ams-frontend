@@ -93,7 +93,10 @@ Update `.github/copilot-instructions.md` immediately after:
   - `/dashboard/(admin)/users` - User management page with CRUD operations
   - `/dashboard/(teacher)` - Teacher-specific dashboard route group
   - `/dashboard/(teacher)/attendance` - Attendance management page (list today's classes)
-  - `/dashboard/(teacher)/attendance/session/[id]` - Single session attendance marking page
+  - `/dashboard/(teacher)/attendance/session/[id]` - Session attendance method selection page
+  - `/dashboard/(teacher)/attendance/session/[id]/swipe` - Swipe-card attendance marking page
+  - `/dashboard/(teacher)/attendance/session/[id]/tick` - Tick-list attendance marking page
+  - `/dashboard/(teacher)/attendance/session/[id]/csv` - CSV attendance import method page
   - `/dashboard/profile` - User profile page
   - `/dashboard/notifications` - Notifications page
   - `/dashboard/assignments` - Assignments page
@@ -201,16 +204,32 @@ Update `.github/copilot-instructions.md` immediately after:
   - Filter sessions by unique class (batch+subject combination)
   - Create new class/attendance session
   - Sessions table with batch, subject, time, duration, and actions
-  - Click on a session to mark attendance
+  - Click on a session to open attendance method selection
+  - Method selection includes swipe-card flow, tick-list flow, and CSV import flow
+  - Session attendance marking with swipe-card UX (Tinder-style): swipe right for present, swipe left for absent
+  - Tick-list attendance marking with per-student present/absent actions and bulk save
+  - Manual present/absent buttons on each student card and undo-last action
+  - CSV attendance marking using comma-separated roll numbers (or newline separated) with mode toggle:
+    - "Entered roll numbers are Present" mode
+    - "Entered roll numbers are Absent" mode
+    - Unknown roll number detection before save
+    - Bulk save that infers opposite status for unlisted students
+  - Attendance summary and bulk save to attendance record API after all students are marked
   - Mobile-first responsive design
   - Real-time loading states with skeletons
 - **Components:**
   - `page.tsx` - Main attendance page with filtering
   - `create-class-dialog.tsx` - Modal for creating new attendance sessions
-  - `session/[id]/page.tsx` - Single session view for marking attendance (coming soon: student list and marking features)
+  - `session/[id]/page.tsx` - Session method selection page (Swipe Cards, Tick List, CSV Upload)
+  - `session/[id]/swipe/page.tsx` - Swipe-card attendance marking page with present/absent counters, undo, and bulk save
+  - `session/[id]/tick/page.tsx` - Tick-list attendance marking page with per-student actions, undo, and bulk save
+  - `session/[id]/csv/page.tsx` - CSV import method page for session attendance
 - **API Integration:** 
   - Uses `getRecentUniqueSessions()` from `/attendance/session/recent` to get unique batch+subject combinations
   - Uses `lib/api/attendance-session.ts` with `/attendance/session` endpoints for CRUD operations
+  - Uses `lib/api/user.ts` to load and filter students by session batch for attendance marking
+  - Uses `lib/api/attendance-record.ts` bulk create endpoint to persist attendance records
+  - CSV route supports direct comma-separated roll-number attendance entry with present/absent mode switching and batch-wide bulk save
   - Filter functionality allows viewing sessions by specific class
 
 All components are responsive with mobile-first design and support dark/light modes.

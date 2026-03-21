@@ -4,8 +4,62 @@
  */
 
 import { ListUsersParams, ListUsersResponse, ApiResponse, User, UpdateUserData, CreateUserData } from "../types/UserTypes";
+import { getTeacherStudents } from "../dummy-data";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+function getDummyStudentsResponse(params: ListUsersParams): ListUsersResponse {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 10;
+  const query = (params.search ?? "").trim().toLowerCase();
+
+  const mappedUsers: User[] = getTeacherStudents().map((student) => ({
+    _id: student.id,
+    user: {
+      _id: student.id,
+      name: student.name,
+      email: `${student.id.toLowerCase()}@dummy.local`,
+      first_name: student.name.split(" ")[0] || student.name,
+      last_name: student.name.split(" ").slice(1).join(" ") || "Student",
+      role: "student",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    adm_number: student.rollNumber,
+    batch: {
+      _id: "dummy-batch",
+      name: "Dummy Batch",
+      year: 2026,
+    },
+  }));
+
+  const filteredUsers = query
+    ? mappedUsers.filter(
+        (user) =>
+          user.user.name.toLowerCase().includes(query) ||
+          user.user.email.toLowerCase().includes(query) ||
+          (user.adm_number ?? "").toLowerCase().includes(query)
+      )
+    : mappedUsers;
+
+  const totalUsers = filteredUsers.length;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / limit));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * limit;
+  const users = filteredUsers.slice(start, start + limit);
+
+  return {
+    users,
+    pagination: {
+      currentPage: safePage,
+      totalPages,
+      totalUsers,
+      limit,
+      hasNextPage: safePage < totalPages,
+      hasPreviousPage: safePage > 1,
+    },
+  };
+}
 
 /**
  * List users with pagination, filtering, and search (admin only)
@@ -18,21 +72,35 @@ export async function listUsers(params: ListUsersParams): Promise<ListUsersRespo
   if (params.limit) queryParams.append('limit', params.limit.toString());
   if (params.search) queryParams.append('search', params.search);
 
-  const response = await fetch(`${API_BASE}/user/list?${queryParams.toString()}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-  });
+  try {
+    const response = await fetch(`${API_BASE}/user/list?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to fetch users');
+    if (!response.ok) {
+      let message = 'Failed to fetch users';
+      try {
+        const error = await response.json();
+        message = error.message || message;
+      } catch {
+        // Keep default message when error body is not JSON
+      }
+      throw new Error(message);
+    }
+
+    const result: ApiResponse<ListUsersResponse> = await response.json();
+    return result.data;
+  } catch (error) {
+    if (params.role === 'student') {
+      console.warn('Using dummy student data fallback in listUsers:', error);
+      return getDummyStudentsResponse(params);
+    }
+    throw error;
   }
-
-  const result: ApiResponse<ListUsersResponse> = await response.json();
-  return result.data;
 }
 
 /**
@@ -105,3 +173,5 @@ export async function createUsersBulk(users: CreateUserData[]): Promise<ApiRespo
   const result: ApiResponse<any> = await response.json();
   return result;
 }
+
+export type { User };
