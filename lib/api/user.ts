@@ -3,8 +3,8 @@
  * Handles all user-related API operations for admin management
  */
 
-import { ListUsersParams, ListUsersResponse, ApiResponse, User, UpdateUserData, CreateUserData } from "../types/UserTypes";
 import { getTeacherStudents } from "../dummy-data";
+import { ListUsersParams, ListUsersResponse, ApiResponse, User, UpdateUserData, BulkCreateUserData, BulkCreateUsersResponseData, CreateUserData } from "../types/UserTypes";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
@@ -160,7 +160,11 @@ export async function deleteUserById(id: string): Promise<void> {
 /**
  * Create multiple users in bulk (admin only)
  */
-export async function createUsersBulk(users: CreateUserData[]): Promise<ApiResponse<any>> {
+export type CreateUsersBulkResponse = ApiResponse<BulkCreateUsersResponseData> & {
+  httpStatus: number;
+};
+
+export async function createUsersBulk(users: BulkCreateUserData[]): Promise<CreateUsersBulkResponse> {
   const response = await fetch(`${API_BASE}/user/bulk`, {
     method: 'POST',
     headers: {
@@ -170,8 +174,12 @@ export async function createUsersBulk(users: CreateUserData[]): Promise<ApiRespo
     body: JSON.stringify({ users }),
   });
 
-  const result: ApiResponse<any> = await response.json();
-  return result;
+  const result = (await response.json()) as ApiResponse<BulkCreateUsersResponseData>;
+  // Backend may return 422 for "completed with failures" while still providing structured results.
+  if (!response.ok && response.status !== 422) {
+    throw new Error(result.message || 'Failed to create users');
+  }
+  return { ...result, httpStatus: response.status };
 }
 
 export type { User };

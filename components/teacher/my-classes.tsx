@@ -69,13 +69,13 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
               </div>
               <h3 className="text-lg font-semibold mb-2">No classes found</h3>
               <p className="text-sm text-muted-foreground text-center">
-                You haven't created any attendance sessions yet.
+                You haven&apos;t created any attendance sessions yet.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {classes.map((classItem, index) => {
+            {classes.map((classItem) => {
               const key = `${classItem.batch._id}-${classItem.subject._id}`;
               return (
                 <Card

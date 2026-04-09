@@ -41,96 +41,22 @@ export default function SessionAttendanceMethodsPage() {
   };
 
   useEffect(() => {
-    const loadData = async () => {
+    const loadSession = async () => {
       setLoading(true);
       try {
-        // Fetch session
-        const sessionData = await getAttendanceSessionById(sessionId);
-        setSession(sessionData);
-
-        // Fetch all students (listUsers now handles fallback to dummy data)
-        const usersResponse = await listUsers({ role: 'student', limit: 1000 });
-        const filteredStudents = usersResponse.users.filter(
-          (user) => user.batch?._id === sessionData.batch._id
-        );
-        const batchStudents = filteredStudents.length > 0 ? filteredStudents : usersResponse.users;
-
-        setStudents(batchStudents);
-
-        // Fetch attendance records for this session (fallback to dummy statuses)
-        try {
-          const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 1000 });
-          const recordsMap = new Map<string, AttendanceRecord>();
-          const statusMap = new Map<string, 'present' | 'absent'>();
-
-          recordsResponse.records.forEach((record) => {
-            recordsMap.set(record.student._id, record);
-            statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
-          });
-
-          setAttendanceRecords(recordsMap);
-          if (statusMap.size > 0) {
-            setAttendanceStatus(statusMap);
-          } else {
-            setAttendanceStatus(getDummyStatusMap(new Set(batchStudents.map((s) => s._id))));
-          }
-        } catch (recordError) {
-          console.warn("Using dummy attendance fallback:", recordError);
-          setAttendanceRecords(new Map());
-          setAttendanceStatus(getDummyStatusMap(new Set(batchStudents.map((s) => s._id))));
-        }
+        const data = await getAttendanceSessionById(sessionId);
+        setSession(data);
       } catch (error) {
-        console.error("Failed to load data:", error);
-        setStudents([]);
-        setAttendanceStatus(new Map());
+        console.error("Failed to load session:", error);
       } finally {
         setLoading(false);
       }
     };
 
     if (sessionId) {
-      loadData();
+      void loadSession();
     }
   }, [sessionId]);
-
-  // Auto-refresh when window regains focus
-  useEffect(() => {
-    const handleFocus = () => {
-      refreshAttendanceList();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [sessionId]);
-
-  const toggleAttendance = (studentId: string) => {
-    setAttendanceStatus((prev) => {
-      const newStatus = new Map(prev);
-      const current = newStatus.get(studentId);
-      newStatus.set(studentId, current === 'present' ? 'absent' : 'present');
-      return newStatus;
-    });
-  };
-
-  const refreshAttendanceList = async () => {
-    try {
-      const recordsResponse = await listAttendanceRecords({ session: sessionId, limit: 1000 });
-      const recordsMap = new Map<string, AttendanceRecord>();
-      const statusMap = new Map<string, 'present' | 'absent'>();
-      
-      recordsResponse.records.forEach((record) => {
-        recordsMap.set(record.student._id, record);
-        statusMap.set(record.student._id, record.status === 'present' ? 'present' : 'absent');
-      });
-      
-      setAttendanceRecords(recordsMap);
-      setAttendanceStatus(statusMap);
-    } catch (error) {
-      console.error("Failed to refresh attendance:", error);
-      const currentStudentIds = new Set(students.map((student) => student._id));
-      setAttendanceStatus(getDummyStatusMap(currentStudentIds));
-    }
-  };
 
   if (loading) {
     return (

@@ -22,14 +22,15 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Eye, Pencil, Trash2, Search, UserPlus } from "lucide-react";
+import { AlertCircle, Eye, Pencil, Trash2, Search, UserPlus, Upload } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserDialog } from "./user-dialog";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { AddUserDialog } from "./add-user-dialog";
+import { BulkUploadDialog } from "./bulk-upload-dialog";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -43,7 +44,6 @@ const ROLE_TABS: { value: TabValue; label: string; roles: UserRole[] }[] = [
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]); // Store all fetched users for staff tab
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,11 +58,7 @@ export default function UsersPage() {
   const [dialogMode, setDialogMode] = useState<"view" | "edit">("view");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
-
-  // Fetch users when role, page, or active search changes
-  useEffect(() => {
-    fetchUsers();
-  }, [selectedTab, currentPage, activeSearch]);
+  const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -98,7 +94,6 @@ export default function UsersPage() {
         const paginatedUsers = allStaffUsers.slice(startIndex, endIndex);
         
         setUsers(paginatedUsers);
-        setAllUsers(allStaffUsers);
         setPagination({
           currentPage,
           totalPages: Math.ceil(allStaffUsers.length / ITEMS_PER_PAGE),
@@ -124,6 +119,11 @@ export default function UsersPage() {
       setIsLoading(false);
     }
   }, [selectedTab, currentPage, activeSearch]);
+
+  // Fetch users when role, page, or active search changes
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleDelete = async (userId: string) => {
     try {
@@ -171,17 +171,15 @@ export default function UsersPage() {
     return variants[role] || "default";
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-4 md:p-8 space-y-4">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 md:p-8">
+    <>
+      {isLoading ? (
+        <div className="p-4 md:p-8 space-y-4">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      ) : (
+        <div className="p-4 md:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="mb-10">
               <CardTitle className="text-3xl font-bold tracking-tight">User Management</CardTitle>
@@ -189,10 +187,20 @@ export default function UsersPage() {
                 View, edit, and manage all users in the system
               </CardDescription>
             </div>
-            <Button className="w-full md:w-auto cursor-pointer" onClick={() => setAddUserDialogOpen(true)}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add New User
-            </Button>
+            <div className="flex w-full md:w-auto flex-col md:flex-row gap-2">
+              <Button
+                variant="outline"
+                className="w-full md:w-auto cursor-pointer"
+                onClick={() => setBulkUploadDialogOpen(true)}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import CSV
+              </Button>
+              <Button className="w-full md:w-auto cursor-pointer" onClick={() => setAddUserDialogOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add New User
+              </Button>
+            </div>
           </div>
         <CardContent className="space-y-4">
           {/* Role Tabs */}
@@ -265,10 +273,11 @@ export default function UsersPage() {
                   </TableRow>
                 ) : (
                   users.map((user) => (
+                    //@ts-ignore
                     <TableRow key={user._id}>
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
-                          <span>{user.user.name}</span>
+                          <span>{user.name}</span>
                           {user.adm_number && (
                             <span className="text-xs text-muted-foreground md:hidden">
                               {user.adm_number}
@@ -276,10 +285,10 @@ export default function UsersPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-50 truncate">{user.user.email}</TableCell>
+                      <TableCell className="max-w-50 truncate">{user.email}</TableCell>
                       <TableCell className="hidden md:table-cell">
-                        <Badge variant={getRoleBadgeVariant(user.user.role)}>
-                          {user.user.role}
+                        <Badge variant={getRoleBadgeVariant(user.role)}>
+                          {user.role}
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
@@ -288,7 +297,7 @@ export default function UsersPage() {
                         {selectedTab === 'parent' && user.relation}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {user.department || user.user.phone || "-"}
+                        {user.department || user.phone || "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -383,6 +392,8 @@ export default function UsersPage() {
             </div>
           )}
         </CardContent>
+        </div>
+      )}
 
       {/* Dialogs */}
       {selectedUser && (
@@ -398,7 +409,7 @@ export default function UsersPage() {
             user={selectedUser}
             open={deleteDialogOpen}
             onOpenChange={setDeleteDialogOpen}
-            onConfirm={() => handleDelete(selectedUser.user._id)}
+            onConfirm={() => handleDelete(selectedUser.id.user)}
           />
         </>
       )}
@@ -408,6 +419,12 @@ export default function UsersPage() {
         onOpenChange={setAddUserDialogOpen}
         onSuccess={fetchUsers}
       />
-    </div>
+
+      <BulkUploadDialog
+        open={bulkUploadDialogOpen}
+        onOpenChange={setBulkUploadDialogOpen}
+        onSuccess={fetchUsers}
+      />
+    </>
   );
 }

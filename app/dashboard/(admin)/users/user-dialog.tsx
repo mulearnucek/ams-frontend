@@ -10,10 +10,7 @@ import { User, UpdateUserData } from "@/lib/types/UserTypes";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -103,10 +100,10 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
   useEffect(() => {
     if (user && open) {
       form.reset({
-        first_name: user.user.first_name,
-        last_name: user.user.last_name,
-        phone: user.user.phone,
-        gender: user.user.gender,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        gender: user.gender,
         
         // Student
         adm_number: user.adm_number,
@@ -139,7 +136,7 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
         gender: data.gender,
       };
 
-      const role = user.user.role;
+      const role = user.role;
 
       if (role === 'student') {
         updateData.student = {
@@ -164,7 +161,7 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
         };
       }
 
-      await updateUserById(user.user._id, updateData);
+      await updateUserById(user.id.user, updateData);
       if (onSuccess) onSuccess(); // Notify parent to refresh list
       setIsEditing(false); // Switch back to view mode
     } catch (err) {
@@ -192,10 +189,28 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
     }
   };
 
-  const role = user.user.role;
+  const role = user.role;
   const isStudent = role === 'student';
   const isParent = role === 'parent';
   const isStaff = ['teacher', 'hod', 'principal', 'staff'].includes(role);
+
+  const hasBasicProfile = Boolean(user.first_name && user.last_name);
+  const hasStudentProfile = !isStudent
+    ? true
+    : Boolean(
+        user.batch &&
+          user.adm_number &&
+          user.adm_year &&
+          user.department &&
+          user.date_of_birth
+      );
+  const hasStaffProfile = !isStaff
+    ? true
+    : Boolean(user.designation && user.department && user.date_of_joining);
+  const hasParentProfile = !isParent
+    ? true
+    : Boolean(user.relation && user.child?._id);
+  const isProfileIncomplete = !(hasBasicProfile && hasStudentProfile && hasStaffProfile && hasParentProfile);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,29 +233,35 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
                     </Button>
                   )}
                   <Avatar className="h-32 w-32 mb-4">
-                    <AvatarImage src={user.user.image} alt={user.user.name} />
-                    <AvatarFallback className="text-2xl">{getInitials(user.user.name)}</AvatarFallback>
+                    <AvatarImage src={user.image} alt={user.name} />
+                    <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
-                  <h3 className="text-2xl font-semibold mb-1">{user.user.name}</h3>
+                  <h3 className="text-2xl font-semibold mb-1">{user.name}</h3>
                   <div 
                     className="group relative flex items-center gap-2 cursor-pointer hover:bg-muted/50 px-2 py-1 round transition-colors"
-                    onClick={() => navigator.clipboard.writeText(user.user.email)}
+                    onClick={() => navigator.clipboard.writeText(user.email)}
                     title="Click to copy email"
                   >
-                    <p className="text-muted-foreground break-all text-sm">{user.user.email}</p>
+                    <p className="text-muted-foreground break-all text-sm">{user.email}</p>
                   </div>
                   <Badge variant="outline" className="mt-3 text-md px-4 py-1 capitalize">
-                    {user.user.role}
+                    {user.role}
                   </Badge>
+                  {isProfileIncomplete && (
+                    <Badge variant="secondary" className="mt-2">
+                      Profile Incomplete
+                    </Badge>
+                  )}
                 </div>
                 
                 <div className="border rounded-lg p-4 space-y-3">
                   <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">Account Meta</h4>
                   <div className="space-y-2 text-sm">
-                    <InfoItem label="User ID" value={user.user._id} />
-                    <InfoItem label="Record ID" value={user._id} />
-                    <InfoItem label="Created At" value={formatDate(user.user.createdAt)} />
-                    <InfoItem label="Updated At" value={formatDate(user.user.updatedAt)} />
+                   {/* @ts-ignore */}
+                    <InfoItem label="User ID" value={user._id} />
+                    <InfoItem label="Record ID" value={user.id.record} />
+                    <InfoItem label="Created At" value={formatDate(user.createdAt)} />
+                    <InfoItem label="Updated At" value={formatDate(user.updatedAt)} />
                   </div>
                 </div>
               </div>
@@ -321,12 +342,12 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                      <InfoItem label="First Name" value={user.user.first_name} />
-                      <InfoItem label="Last Name" value={user.user.last_name} />
-                      <InfoItem label="Email" value={user.user.email} />
-                      <InfoItem label="Phone" value={user.user.phone?.toString()} />
-                      <InfoItem label="Gender" value={user.user.gender} />
-                      <InfoItem label="Email Verified" value={user.user.emailVerified ? "Yes" : "No"} />
+                      <InfoItem label="First Name" value={user.first_name} />
+                      <InfoItem label="Last Name" value={user.last_name} />
+                      <InfoItem label="Email" value={user.email} />
+                      <InfoItem label="Phone" value={user.phone?.toString()} />
+                      <InfoItem label="Gender" value={user.gender} />
+                      <InfoItem label="Email Verified" value={user.emailVerified ? "Yes" : "No"} />
                     </div>
                   )}
                 </div>
@@ -422,8 +443,20 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
                           <InfoItem label="Date of Birth" value={formatDate(user.date_of_birth)} />
                           {user.batch && (
                             <>
-                              <InfoItem label="Batch Name" value={user.batch.name} />
-                              <InfoItem label="Batch Year" value={user.batch.year.toString()} />
+                              <InfoItem
+                                label="Batch"
+                                value={
+                                  typeof user.batch === "string" ? user.batch : user.batch?.name
+                                }
+                              />
+                              <InfoItem
+                                label="Batch Year"
+                                value={
+                                  typeof user.batch === "string"
+                                    ? undefined
+                                    : user.batch?.year?.toString() ?? user.batch?.adm_year?.toString()
+                                }
+                              />
                             </>
                           )}
                         </div>
@@ -535,7 +568,7 @@ export function UserDialog({ user, open, onOpenChange, onSuccess, initialMode = 
                              <InfoItem label="Relation" value={user.relation} />
                               {user.child && (
                                 <>
-                                  <InfoItem label="Child Name" value={user.child.user.name} />
+                                  <InfoItem label="Child Name" value={user.child?.user?.name} />
                                   <InfoItem label="Child Admission No." value={user.child.adm_number} />
                                 </>
                               )}
