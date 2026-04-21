@@ -251,7 +251,7 @@ export default function SessionAttendanceMethodsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-4 md:p-8 space-y-6">
+      <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
         <Skeleton className="h-12 w-72" />
         <Skeleton className="h-56 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -261,7 +261,7 @@ export default function SessionAttendanceMethodsPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen p-4 md:p-8">
+      <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8">
         <Card>
           <CardHeader>
             <CardTitle>Session Not Found</CardTitle>
@@ -287,7 +287,7 @@ export default function SessionAttendanceMethodsPage() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 space-y-6">
+    <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/attendance")}>
           <ArrowLeft className="h-5 w-5" />
@@ -410,7 +410,7 @@ export default function SessionAttendanceMethodsPage() {
           ) : students.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">No students found in this batch.</p>
           ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
+            <div className="space-y-2">
               {students.map((student) => {
                 const studentId = student._id;
                 const status = attendanceStatus.get(studentId!) || 'default';
