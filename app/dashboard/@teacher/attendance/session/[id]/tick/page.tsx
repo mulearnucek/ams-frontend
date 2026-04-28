@@ -191,7 +191,7 @@ export default function TickAttendancePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-4 md:p-8 space-y-6">
+      <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-56 w-full" />
         <Skeleton className="h-80 w-full" />
@@ -201,7 +201,7 @@ export default function TickAttendancePage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen p-4 md:p-8">
+      <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8">
         <Card>
           <CardHeader>
             <CardTitle>Session Not Found</CardTitle>
@@ -227,7 +227,7 @@ export default function TickAttendancePage() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 space-y-6">
+    <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/attendance/session/${sessionId}`)}>
           <ArrowLeft className="h-5 w-5" />
@@ -252,7 +252,7 @@ export default function TickAttendancePage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-visible">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center gap-3 p-3 rounded-lg bg-muted">
               <Users className="h-5 w-5 text-primary shrink-0" />
@@ -295,10 +295,19 @@ export default function TickAttendancePage() {
               <CardTitle>Tick List</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Unmarked students will be saved as absent.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">Present: {presentCount}</Badge>
-              <Badge variant="outline">Absent: {absentCount}</Badge>
-              <Badge variant="outline">Unmarked: {unmarkedCount}</Badge>
+            <div className="grid grid-cols-3 gap-3 rounded-lg bg-muted p-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Present</p>
+                <p className="text-xl font-bold">{presentCount}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Absent</p>
+                <p className="text-xl font-bold">{absentCount}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Unmarked</p>
+                <p className="text-xl font-bold">{unmarkedCount}</p>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -312,7 +321,7 @@ export default function TickAttendancePage() {
           ) : students.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">No students found for this batch.</div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-visible">
               {students.map((student) => {
                 const status = markedStatuses[student._id!];
                 const p = (student.profile as any) ?? {};

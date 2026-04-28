@@ -15,11 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calendar, Clock, Users, BookOpen, Pencil, Trash2, Filter, ChevronDown } from "lucide-react";
+import { Calendar, Clock, Users, Trash2, Filter, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
-import { listAttendanceSessions, deleteAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
+import { listAttendanceSessions, deleteAttendanceSessionById, getRecentUniqueSessions, type AttendanceSession } from "@/lib/api/attendance-session";
 import CreateClassDialog from "./create-class-dialog";
 
 type ClassFilterItem = {
@@ -42,6 +42,7 @@ export default function AttendancePage() {
   const [deleteDialogSession, setDeleteDialogSession] = useState<AttendanceSession | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>("all");
   const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [semesterByGroupKey, setSemesterByGroupKey] = useState<Record<string, string>>({});
 
   const extractYearFromBatch = (batch: AttendanceSession["batch"]): string | null => {
     const normalizeTwoDigitYear = (yy: string) => {
@@ -180,6 +181,25 @@ export default function AttendancePage() {
     return filtered;
   };
 
+  const loadSemesterMap = async () => {
+    try {
+      const recent = await getRecentUniqueSessions();
+      const map: Record<string, string> = {};
+
+      recent.forEach((item) => {
+        const key = `${item.subject._id}-${item.batch._id}`;
+        if (!map[key]) {
+          map[key] = item.subject.sem || "N/A";
+        }
+      });
+
+      setSemesterByGroupKey(map);
+    } catch (error) {
+      console.warn("Failed to load semester map:", error);
+      setSemesterByGroupKey({});
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -197,6 +217,7 @@ export default function AttendancePage() {
       const teacherSessions = filterTeacherSessions(allSessions);
       setSessions(teacherSessions);
       setUniqueClasses(buildUniqueClassesFromSessions(teacherSessions));
+      await loadSemesterMap();
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -220,6 +241,7 @@ export default function AttendancePage() {
       const teacherSessions = filterTeacherSessions(allSessions);
       setSessions(teacherSessions);
       setUniqueClasses(buildUniqueClassesFromSessions(teacherSessions));
+      await loadSemesterMap();
     } catch (error) {
       console.error("Failed to load sessions:", error);
     }
@@ -265,6 +287,7 @@ export default function AttendancePage() {
         groupKey: string;
         subjectName: string;
         subjectCode: string;
+        subjectSem: string;
         batchName: string;
         sessions: AttendanceSession[];
       }
@@ -281,6 +304,11 @@ export default function AttendancePage() {
           groupKey,
           subjectName: session.subject.name,
           subjectCode: session.subject.code,
+          subjectSem:
+            semesterByGroupKey[groupKey] ||
+            (session.subject as { sem?: string; semester?: string }).sem ||
+            (session.subject as { sem?: string; semester?: string }).semester ||
+            "N/A",
           batchName: session.batch?.name ?? "N/A",
           sessions: [session],
         });
@@ -299,7 +327,7 @@ export default function AttendancePage() {
         if (subjectCompare !== 0) return subjectCompare;
         return a.batchName.localeCompare(b.batchName);
       });
-  }, [filteredSessions]);
+  }, [filteredSessions, semesterByGroupKey]);
 
   const handleDelete = async (sessionId: string) => {
     try {
@@ -431,10 +459,13 @@ export default function AttendancePage() {
                 <details key={group.groupKey} className="rounded-md border bg-card group">
                   <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between hover:bg-muted/50 [&::-webkit-details-marker]:hidden">
                     <div className="flex items-center gap-2 min-w-0">
-                      <BookOpen className="h-4 w-4 text-primary shrink-0" />
-                      <span className="font-semibold truncate">{group.subjectName}</span>
-                      <span className="text-muted-foreground">-</span>
-                      <span className="text-sm text-muted-foreground truncate">{group.batchName}</span>
+                      <span className="text-xs text-primary shrink-0">S{group.subjectSem}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{group.subjectName}</p>
+                        <p className="text-xs text-muted-foreground truncate sm:hidden">{group.batchName}</p>
+                      </div>
+                      <span className="hidden sm:inline text-muted-foreground">-</span>
+                      <span className="hidden sm:inline text-sm text-muted-foreground truncate">{group.batchName}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -451,7 +482,7 @@ export default function AttendancePage() {
                         View Report
                       </Button>
                       <Badge variant="outline">
-                        {group.sessions.length} {group.sessions.length === 1 ? "session" : "sessions"}
+                        {group.sessions.length}
                       </Badge>
                       <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
                     </div>
@@ -465,7 +496,7 @@ export default function AttendancePage() {
                             <TableHead>Time</TableHead>
                             <TableHead>Type</TableHead>
                             <TableHead className="hidden sm:table-cell">Duration</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead className="text-right"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -494,17 +525,6 @@ export default function AttendancePage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    title="Edit"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      alert("Edit functionality coming soon!");
-                                    }}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"

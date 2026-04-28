@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,22 @@ export default function CsvAttendanceDialog({
       .map((item) => item.trim())
       .filter(Boolean);
   }, [rollInput]);
+
+  const latestEnteredRoll = useMemo(() => {
+    if (parsedRolls.length === 0) return null;
+    return parsedRolls[parsedRolls.length - 1].padStart(3, "0");
+  }, [parsedRolls]);
+
+  const latestEnteredStudent = useMemo(() => {
+    if (!latestEnteredRoll) return null;
+    return normalizedRollMap.get(latestEnteredRoll) ?? null;
+  }, [latestEnteredRoll, normalizedRollMap]);
+
+  const latestEnteredRollDisplay = useMemo(() => {
+    if (!latestEnteredRoll) return null;
+    const withoutLeadingZeros = latestEnteredRoll.replace(/^0+/, "");
+    return withoutLeadingZeros || "0";
+  }, [latestEnteredRoll]);
 
   const uniqueParsedRolls = useMemo(() => {
     const unique = new Set<string>();
@@ -199,15 +215,11 @@ export default function CsvAttendanceDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Mark Attendance with Roll Numbers</DialogTitle>
-          <DialogDescription>
-            Enter roll numbers (comma or newline separated) to mark attendance for {session.subject?.name}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Mode Selection */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Mode</Label>
             <div className="flex gap-4">
               <Button
                 variant={mode === "present" ? "default" : "outline"}
@@ -244,6 +256,11 @@ export default function CsvAttendanceDialog({
               className="min-h-32 font-mono text-sm"
               disabled={saving}
             />
+            {latestEnteredRoll && (
+              <div className="text-xs text-muted-foreground">
+                {latestEnteredRollDisplay} : {latestEnteredStudent?.studentName || "No matching student"}
+              </div>
+            )}
           </div>
 
           {/* Summary */}
@@ -266,10 +283,19 @@ export default function CsvAttendanceDialog({
                 {matchedStudents.map((student) => (
                   <div
                     key={student.studentId}
-                    className="flex items-center justify-between p-2 rounded border text-sm"
+                    className="flex items-center justify-between p-2 rounded-xl border text-sm"
                   >
                     <span>{student.studentName}</span>
-                    <Badge variant="secondary">{student.rollNo}</Badge>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        mode === "present"
+                          ? "bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-400"
+                          : "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400"
+                      }
+                    >
+                      {student.rollNo.replace(/^0+/, "") || "0"}
+                    </Badge>
                   </div>
                 ))}
               </div>
