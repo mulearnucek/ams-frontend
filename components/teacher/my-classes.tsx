@@ -5,251 +5,35 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookOpen, Users, Calendar, Clock } from "lucide-react";
-import {
-  getRecentUniqueSessions,
-  listAttendanceSessions,
-  type AttendanceSession,
-  type UniqueSession,
-} from "@/lib/api/attendance-session";
-import { getSubjectById } from "@/lib/api/subject";
+import { getRecentUniqueSessions, type UniqueSession } from "@/lib/api/attendance-session";
 import { format } from "date-fns";
 import QuickStartDialog from "./quick-start-dialog";
-import { useAuth } from "@/lib/auth-context";
 
 interface MyClassesProps {
   onSessionCreated?: () => void;
 }
 
 export default function MyClasses({ onSessionCreated }: MyClassesProps) {
-  const { user } = useAuth();
   const [classes, setClasses] = useState<UniqueSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<UniqueSession | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const normalizeSubjectCode = (subject: unknown): string | null => {
-    const s = (subject ?? {}) as {
-      subject_code?: string | number | null;
-      code?: string | number | null;
-      subjectCode?: string | number | null;
-    };
-
-    const raw = s.subject_code ?? s.code ?? s.subjectCode;
-    const value = String(raw ?? "").trim();
-    if (!value || value === "0" || value === "null" || value === "undefined") {
-      return null;
-    }
-
-    return value.toUpperCase();
-  };
-
-  const normalizeSemesterLabel = (subject: unknown): string => {
-    const s = (subject ?? {}) as {
-      sem?: string | number | null;
-      semester?: string | number | null;
-      sem_no?: string | number | null;
-      semNo?: string | number | null;
-    };
-
-    const raw = s.sem ?? s.semester ?? s.sem_no ?? s.semNo;
-    const value = String(raw ?? "").trim();
-
-    if (!value || value === "0" || value === "-" || value === "null" || value === "undefined") {
-      return "-";
-    }
-
-    const digits = value.match(/\d+/)?.[0];
-    if (digits) return `S${digits}`;
-
-    return value.toUpperCase().startsWith("S") ? value.toUpperCase() : `S${value.toUpperCase()}`;
-  };
-
-  const sanitizeUniqueSession = (item: UniqueSession): UniqueSession => {
-    const normalizedCode = normalizeSubjectCode(item.subject) ?? "";
-    const normalizedSem = normalizeSemesterLabel(item.subject);
-
-    return {
-      ...item,
-      subject: {
-        ...item.subject,
-        subject_code: normalizedCode,
-        sem: normalizedSem,
-      },
-    };
-  };
-
-  const enrichSubjectMetadata = async (items: UniqueSession[]): Promise<UniqueSession[]> => {
-    const uniqueIdsToEnrich = Array.from(
-      new Set(
-        items
-          .filter((item) => {
-            const code = normalizeSubjectCode(item.subject);
-            const sem = normalizeSemesterLabel(item.subject);
-            return !!item.subject?._id && (!code || sem === "-");
-          })
-          .map((item) => item.subject._id)
-      )
-    );
-
-    if (uniqueIdsToEnrich.length === 0) {
-      return items;
-    }
-
-    const subjectMap = new Map<string, { subject_code?: string; sem?: string | number }>();
-
-    await Promise.all(
-      uniqueIdsToEnrich.map(async (id) => {
-        try {
-          const subject = await getSubjectById(id);
-          subjectMap.set(id, {
-            subject_code: subject.subject_code,
-            sem: subject.sem,
-          });
-        } catch {
-          // Keep original values when enrichment endpoint fails.
-        }
-      })
-    );
-
-    return items.map((item) => {
-      const enriched = subjectMap.get(item.subject._id);
-      if (!enriched) return item;
-
-      const normalizedCode =
-        normalizeSubjectCode({
-          subject_code: enriched.subject_code,
-          code: item.subject.subject_code,
-        }) || item.subject.subject_code;
-      const normalizedSem = normalizeSemesterLabel({
-        sem: enriched.sem,
-        semester: item.subject.sem,
-      });
-
-      return {
-        ...item,
-        subject: {
-          ...item.subject,
-          subject_code: normalizedCode,
-          sem: normalizedSem,
-        },
-      };
-    });
-  };
-
-  const loadClassesFromSessionsFallback = async (): Promise<UniqueSession[]> => {
-    if (!user?.email) return [];
-
-    let allSessions: AttendanceSession[] = [];
-    let page = 1;
-    let totalPages = 1;
-
-    do {
-      const response = await listAttendanceSessions({ page, limit: 100 });
-      allSessions = [...allSessions, ...response.sessions];
-      totalPages = response.pagination?.totalPages || 1;
-      page += 1;
-    } while (page <= totalPages);
-
-    const teacherSessions = allSessions.filter((session) => {
-      const creator = session.created_by as unknown as
-        | string
-        | {
-            _id?: string;
-            email?: string;
-            user?: {
-              _id?: string;
-              email?: string;
-            };
-          }
-        | undefined;
-
-      const createdByUserId =
-        typeof creator === "string"
-          ? creator
-          : (creator?.user?._id || creator?._id);
-
-      const createdByEmail =
-        typeof creator === "string"
-          ? undefined
-          : (creator?.user?.email || creator?.email)?.toLowerCase();
-
-      if (user._id && createdByUserId) {
-        return createdByUserId === user._id;
-      }
-
-      return createdByEmail === user.email.toLowerCase();
-    });
-
-    const groups = new Map<string, UniqueSession>();
-
-    teacherSessions.forEach((session) => {
-      const batchId = session.batch?._id;
-      const subjectId = session.subject?._id;
-      if (!batchId || !subjectId) return;
-
-      const key = `${batchId}-${subjectId}`;
-      const existing = groups.get(key);
-      const latestSession = existing
-        ? (new Date(session.start_time) > new Date(existing.latestSession) ? session.start_time : existing.latestSession)
-        : session.start_time;
-
-      groups.set(key, {
-        batch: {
-          _id: batchId,
-          name: session.batch.name,
-          department: (session.batch as unknown as { department?: string }).department || "",
-          adm_year: Number((session.batch as unknown as { adm_year?: number; year?: number }).adm_year || session.batch.year || 0),
-        },
-        subject: {
-          _id: subjectId,
-          name: session.subject.name,
-          subject_code: (session.subject as unknown as { subject_code?: string; code?: string }).subject_code || session.subject.code,
-          sem: String((session.subject as unknown as { sem?: string | number }).sem || "-"),
-          type: String((session.subject as unknown as { type?: string }).type || session.session_type || "regular"),
-        },
-        sessionCount: (existing?.sessionCount || 0) + 1,
-        latestSession,
-      });
-    });
-
-    return Array.from(groups.values()).sort(
-      (a, b) => new Date(b.latestSession).getTime() - new Date(a.latestSession).getTime()
-    );
-  };
+  useEffect(() => {
+    loadClasses();
+  }, []);
 
   const loadClasses = async () => {
     setLoading(true);
     try {
       const data = await getRecentUniqueSessions();
-      if (data.length > 0) {
-        const sanitized = data.map(sanitizeUniqueSession);
-        const enriched = await enrichSubjectMetadata(sanitized);
-        setClasses(enriched);
-      } else {
-        const fallbackData = await loadClassesFromSessionsFallback();
-        const sanitized = fallbackData.map(sanitizeUniqueSession);
-        const enriched = await enrichSubjectMetadata(sanitized);
-        setClasses(enriched);
-      }
+      setClasses(data);
     } catch (error) {
       console.error("Failed to load classes:", error);
-      try {
-        const fallbackData = await loadClassesFromSessionsFallback();
-        const sanitized = fallbackData.map(sanitizeUniqueSession);
-        const enriched = await enrichSubjectMetadata(sanitized);
-        setClasses(enriched);
-      } catch (fallbackError) {
-        console.error("My Classes fallback failed:", fallbackError);
-        setClasses([]);
-      }
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadClasses();
-  }, [user?._id, user?.email]);
 
   const handleClassClick = (classItem: UniqueSession) => {
     setSelectedClass(classItem);
@@ -293,8 +77,6 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {classes.map((classItem) => {
               const key = `${classItem.batch._id}-${classItem.subject._id}`;
-              const subjectCode = normalizeSubjectCode(classItem.subject);
-              const semesterLabel = normalizeSemesterLabel(classItem.subject);
               return (
                 <Card
                   key={key}
@@ -308,11 +90,9 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
                         <h3 className="font-semibold min-w-0 text-base leading-tight truncate">
                           {classItem.subject.name}
                         </h3>
-                      {subjectCode ? (
-                        <p className="text-xs flex items-center justify-center text-muted-foreground">
-                          ({subjectCode})
+                      <p className="text-xs flex items-center justify-center text-muted-foreground">
+                          ({classItem.subject.subject_code})
                         </p>
-                      ) : null}
                     </div>
 
                     {/* Batch */}
@@ -322,7 +102,7 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
                         {classItem.batch.name}
                       </span>
                       <Badge variant="outline" className="ml-auto shrink-0">
-                        {semesterLabel}
+                        S{classItem.subject.sem}
                       </Badge>
                     </div>
 

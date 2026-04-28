@@ -2,7 +2,11 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 export interface SubjectAttendanceStats {
+  subjectId?: string;
   subjectName: string;
+  subjectCode?: string;
+  sem?: string | number;
+  semester?: string | number;
   totalClasses: number;
   attendedClasses: number;
   percentage: number;

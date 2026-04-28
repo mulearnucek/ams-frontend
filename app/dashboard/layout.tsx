@@ -63,6 +63,13 @@ export default function DashboardLayout({
       );
     }
 
+    // Student-specific items
+    if (user?.role === 'student') {
+      baseItems.push(
+        { icon: <ClipboardCheck size={18} />, label: 'Attendance', onClick: () => router.push('/dashboard/attendance') }
+      );
+    }
+
     // Common items for all roles
     baseItems.push(
       { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
