@@ -174,7 +174,7 @@ export function isKnownPopulateResponseIssue(message?: string): boolean {
 export async function listBatches(params?: ListBatchesParams): Promise<ListBatchesResponse> {
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.append('page', params.page.toString());
-  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.limit) queryParams.append('limit', Math.min(params.limit, 100).toString());
   if (params?.department) queryParams.append('department', params.department);
   if (params?.adm_year) queryParams.append('adm_year', params.adm_year.toString());
 

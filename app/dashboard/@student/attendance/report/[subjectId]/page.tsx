@@ -229,7 +229,10 @@ export default function StudentSubjectReportPage() {
                           {user?.name || `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "Student"}
                         </span>
                         <span className="text-xs text-muted-foreground w-[120px] overflow-hidden text-ellipsis whitespace-nowrap block" dir="rtl" style={{ textAlign: "left" }}>
-                          {(user?.profile as { candidate_code?: string } | undefined)?.candidate_code || user?.adm_number || user?.email || user?._id}
+                          {(user?.profile as { candidate_code?: string; adm_number?: string } | undefined)?.candidate_code ||
+                            (user?.profile as { adm_number?: string } | undefined)?.adm_number ||
+                            user?.email ||
+                            user?._id}
                         </span>
                       </div>
                     </td>
