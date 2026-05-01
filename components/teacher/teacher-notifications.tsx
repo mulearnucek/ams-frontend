@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,108 +9,254 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Plus, Edit, Trash2, AlertCircle, Info, CheckCircle } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-
-type Notification = {
-  id: string;
-  title: string;
-  message: string;
-  type: "info" | "warning" | "success" | "announcement";
-  postedBy: string;
-  postedAt: Date;
-  targetClass?: string;
-};
+import { Bell, Plus, Trash2 } from "lucide-react";
+import { listBatches, type Batch } from "@/lib/api/batch";
+import {
+  createNotification,
+  deleteNotification,
+  listMyNotifications,
+  type NotificationRecord
+} from "@/lib/api/notification";
 
 type TeacherNotificationsProps = {
-  notifications: Notification[];
   teacherName: string;
 };
 
-export default function TeacherNotifications({ notifications, teacherName }: TeacherNotificationsProps) {
-  const [notificationsList, setNotificationsList] = useState<Notification[]>(notifications);
+type UiNotification = {
+  id: string;
+  title: string;
+  message: string;
+  priorityLevel: string;
+  notificationType: string;
+  targetGroup?: string;
+};
+
+const PRIORITY_UI_OPTIONS = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "urgent", label: "Urgent" }
+];
+
+const TYPE_UI_OPTIONS = [
+  { value: "general", label: "General" },
+  { value: "alert", label: "Alert" },
+  { value: "academic", label: "Academic" },
+  { value: "system", label: "System" }
+];
+
+
+const TARGET_USER_OPTIONS = [
+  { value: "student", label: "Student" },
+  { value: "parent", label: "Parent" },
+  { value: "teacher", label: "Teacher" },
+  { value: "hod", label: "HOD" },
+  { value: "principal", label: "Principal" },
+  { value: "staff", label: "Staff" },
+  { value: "admin", label: "Admin" }
+];
+
+const mapPriorityToApi = (value: string) => {
+  switch (value) {
+    case "low":
+      return "Low";
+    case "medium":
+      return "Medium";
+    case "high":
+    case "urgent":
+      return "High";
+    default:
+      return "Low";
+  }
+};
+
+const mapTypeToApi = (value: string) => {
+  switch (value) {
+    case "general":
+      return "announcement";
+    case "alert":
+      return "info";
+    case "academic":
+      return "results";
+    case "system":
+      return "info";
+    default:
+      return "announcement";
+  }
+};
+
+const mapTypeToUi = (value: string) => {
+  switch (value) {
+    case "announcement":
+      return "general";
+    case "results":
+      return "academic";
+    case "info":
+    default:
+      return "alert";
+  }
+};
+
+const normalizeNotification = (notification: NotificationRecord, index: number): UiNotification => {
+  const id = notification._id || notification.id || `notification-${index}`;
+  const notificationType = notification.Notificationtype || notification.notificationType || "announcement";
+  const priorityLevel = notification.priorityLevel || "Low";
+
+  return {
+    id,
+    title: notification.title || "Untitled",
+    message: notification.message || "",
+    priorityLevel,
+    notificationType,
+    targetGroup: notification.targetGroup
+  };
+};
+
+const getPriorityBadge = (priority: string) => {
+  switch (priority) {
+    case "High":
+      return <Badge className="bg-red-500/10 text-red-700">High</Badge>;
+    case "Medium":
+      return <Badge className="bg-amber-500/10 text-amber-700">Medium</Badge>;
+    case "Low":
+    default:
+      return <Badge className="bg-emerald-500/10 text-emerald-700">Low</Badge>;
+  }
+};
+
+const getTypeBadge = (typeValue: string) => {
+  const label = TYPE_UI_OPTIONS.find((option) => option.value === mapTypeToUi(typeValue))?.label || "General";
+  return <Badge className="bg-blue-500/10 text-blue-700">{label}</Badge>;
+};
+
+export default function TeacherNotifications({ teacherName }: TeacherNotificationsProps) {
+  const [notifications, setNotifications] = useState<UiNotification[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingNotification, setEditingNotification] = useState<Notification | null>(null);
-  const [formData, setFormData] = useState({
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
+  const [batchesError, setBatchesError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formState, setFormState] = useState({
+    targetGroup: "batch",
+    targetID: "",
+    targetUsers: ["student"] as string[],
     title: "",
     message: "",
-    type: "announcement" as Notification["type"],
-    targetClass: "all",
+    priorityLevel: "medium",
+    notificationType: "general"
   });
 
-  const getNotificationIcon = (type: Notification["type"]) => {
-    switch (type) {
-      case "warning":
-        return <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />;
-      case "success":
-        return <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />;
-      case "info":
-        return <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
-      default:
-        return <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await listMyNotifications();
+      const normalized = response.map((notification, index) => normalizeNotification(notification, index));
+      setNotifications(normalized);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load notifications");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  const getNotificationBadge = (type: Notification["type"]) => {
-    switch (type) {
-      case "warning":
-        return <Badge className="bg-orange-500/10 text-orange-700 dark:text-orange-400">Warning</Badge>;
-      case "success":
-        return <Badge className="bg-green-500/10 text-green-700 dark:text-green-400">Success</Badge>;
-      case "info":
-        return <Badge className="bg-blue-500/10 text-blue-700 dark:text-blue-400">Info</Badge>;
-      default:
-        return <Badge className="bg-purple-500/10 text-purple-700 dark:text-purple-400">Announcement</Badge>;
-    }
-  };
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
-  const handleCreateNotification = () => {
-    const newNotification: Notification = {
-      id: Date.now().toString(),
-      title: formData.title,
-      message: formData.message,
-      type: formData.type,
-      postedBy: teacherName,
-      postedAt: new Date(),
-      targetClass: formData.targetClass === "all" ? undefined : formData.targetClass,
+  useEffect(() => {
+    const fetchBatches = async () => {
+      try {
+        setBatchesLoading(true);
+        setBatchesError(null);
+        const response = await listBatches({ limit: 200 });
+        setBatches(response.batches || []);
+      } catch (err) {
+        setBatchesError(err instanceof Error ? err.message : "Failed to load batches");
+      } finally {
+        setBatchesLoading(false);
+      }
     };
 
-    setNotificationsList([newNotification, ...notificationsList]);
-    setFormData({ title: "", message: "", type: "announcement", targetClass: "all" });
-    setIsCreateOpen(false);
+    fetchBatches();
+  }, []);
+
+  const parseTargetUsers = (value: string[]) => value.filter(Boolean);
+
+
+  const handleCreateNotification = async () => {
+    setFormError(null);
+
+    if (!formState.title.trim() || !formState.message.trim()) {
+      setFormError("Title and message are required.");
+      return;
+    }
+
+    if (formState.targetGroup !== "batch") {
+      setFormError("Teachers can only create batch notifications. Choose target group: Batch.");
+      return;
+    }
+
+    const targetUsers = parseTargetUsers(formState.targetUsers);
+    if (targetUsers.length === 0) {
+      setFormError("Target users are required.");
+      return;
+    }
+
+    if (!formState.targetID.trim()) {
+      setFormError("Target ID is required for batch notifications.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createNotification({
+        targetGroup: "batch",
+        targetID: formState.targetID.trim(),
+        targetUsers,
+        title: formState.title.trim(),
+        message: formState.message.trim(),
+        priorityLevel: mapPriorityToApi(formState.priorityLevel),
+        notificationType: mapTypeToApi(formState.notificationType)
+      });
+
+      setFormState((prev) => ({
+        ...prev,
+        targetID: "",
+        title: "",
+        message: ""
+      }));
+      setIsCreateOpen(false);
+      await fetchNotifications();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Failed to create notification");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEditNotification = () => {
-    if (!editingNotification) return;
-
-    setNotificationsList(
-      notificationsList.map((notif) =>
-        notif.id === editingNotification.id
-          ? { ...notif, title: formData.title, message: formData.message, type: formData.type }
-          : notif
-      )
-    );
-    setEditingNotification(null);
-    setFormData({ title: "", message: "", type: "announcement", targetClass: "all" });
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      await deleteNotification(id);
+      setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete notification");
+    }
   };
 
-  const handleDeleteNotification = (id: string) => {
-    setNotificationsList(notificationsList.filter((notif) => notif.id !== id));
+  const handleTargetGroupChange = (value: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      targetGroup: value
+    }));
   };
 
-  const openEditDialog = (notification: Notification) => {
-    setEditingNotification(notification);
-    setFormData({
-      title: notification.title,
-      message: notification.message,
-      type: notification.type,
-      targetClass: notification.targetClass || "all",
-    });
-  };
-
-  const sortedNotifications = [...notificationsList].sort((a, b) =>
-    new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
-  );
+  const sortedNotifications = useMemo(() => {
+    return [...notifications].sort((a, b) => a.title.localeCompare(b.title));
+  }, [notifications]);
 
   return (
     <Card>
@@ -122,7 +268,7 @@ export default function TeacherNotifications({ notifications, teacherName }: Tea
           </CardTitle>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" onClick={() => setFormData({ title: "", message: "", type: "announcement", targetClass: "all" })}>
+              <Button size="sm">
                 <Plus className="w-4 h-4 mr-2" />
                 Create
               </Button>
@@ -134,60 +280,98 @@ export default function TeacherNotifications({ notifications, teacherName }: Tea
                   Post a notification for your students
                 </DialogDescription>
               </DialogHeader>
+              {formError && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              )}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
+                  <Label>Target Group</Label>
+                  <Input value="batch" disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Target ID (batch)</Label>
+                  <Select
+                    value={formState.targetID}
+                    onValueChange={(value) => setFormState((prev) => ({ ...prev, targetID: value }))}
+                    disabled={batchesLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={batchesLoading ? "Loading batches..." : "Select batch"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {batches.map((batch) => (
+                        <SelectItem key={batch._id} value={batch._id}>
+                          {batch.name}{batch.id ? ` (${batch.id})` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {batchesError && <p className="text-xs text-destructive">{batchesError}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Target Users</Label>
+                  <Input value="student" disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Title</Label>
                   <Input
-                    id="title"
+                    value={formState.title}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, title: event.target.value }))}
                     placeholder="Notification title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="message">Message</Label>
+                  <Label>Priority Level</Label>
+                  <Select
+                    value={formState.priorityLevel}
+                    onValueChange={(value) => setFormState((prev) => ({ ...prev, priorityLevel: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRIORITY_UI_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Notification Type</Label>
+                  <Select
+                    value={formState.notificationType}
+                    onValueChange={(value) => setFormState((prev) => ({ ...prev, notificationType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TYPE_UI_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Message</Label>
                   <Textarea
-                    id="message"
+                    value={formState.message}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, message: event.target.value }))}
                     placeholder="Notification message"
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     rows={4}
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="type">Type</Label>
-                  <Select value={formData.type} onValueChange={(value: Notification["type"]) => setFormData({ ...formData, type: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="announcement">Announcement</SelectItem>
-                      <SelectItem value="info">Info</SelectItem>
-                      <SelectItem value="warning">Warning</SelectItem>
-                      <SelectItem value="success">Success</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="targetClass">Target Class</Label>
-                  <Select value={formData.targetClass} onValueChange={(value) => setFormData({ ...formData, targetClass: value })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Classes</SelectItem>
-                      <SelectItem value="CS301">Data Structures (CS301)</SelectItem>
-                      <SelectItem value="CS302">Database Management (CS302)</SelectItem>
-                      <SelectItem value="CS303">Operating Systems (CS303)</SelectItem>
-                      <SelectItem value="CS304">Computer Networks (CS304)</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                <Button onClick={handleCreateNotification} disabled={!formData.title || !formData.message}>
-                  Create
+                <Button onClick={handleCreateNotification} disabled={isSubmitting}>
+                  {isSubmitting ? "Creating..." : "Create"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -195,7 +379,14 @@ export default function TeacherNotifications({ notifications, teacherName }: Tea
         </div>
       </CardHeader>
       <CardContent>
-        {sortedNotifications.length === 0 ? (
+        {error && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
+          </div>
+        )}
+        {loading ? (
+          <div className="text-sm text-muted-foreground">Loading notifications...</div>
+        ) : sortedNotifications.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No notifications yet</p>
@@ -208,95 +399,29 @@ export default function TeacherNotifications({ notifications, teacherName }: Tea
                 key={notification.id}
                 className="p-4 border rounded-lg transition-colors border-border bg-muted/20"
               >
-                <div className="flex items-start gap-3 mb-2">
-                  <div className="mt-0.5">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <h4 className="font-medium text-sm">{notification.title}</h4>
-                      <div className="flex items-center gap-1">
-                        {getNotificationBadge(notification.type)}
-                      </div>
+                      {getPriorityBadge(notification.priorityLevel)}
+                      {getTypeBadge(notification.notificationType)}
                     </div>
                     <p className="text-sm text-muted-foreground mb-2">
                       {notification.message}
                     </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>
-                          {formatDistanceToNow(new Date(notification.postedAt), { addSuffix: true })}
-                        </span>
-                        {notification.targetClass && (
-                          <>
-                            <span>•</span>
-                            <span>Class: {notification.targetClass}</span>
-                          </>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Dialog open={editingNotification?.id === notification.id} onOpenChange={(open) => !open && setEditingNotification(null)}>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="ghost" onClick={() => openEditDialog(notification)}>
-                              <Edit className="w-3 h-3" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Edit Notification</DialogTitle>
-                              <DialogDescription>
-                                Update your notification details
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-title">Title</Label>
-                                <Input
-                                  id="edit-title"
-                                  value={formData.title}
-                                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-message">Message</Label>
-                                <Textarea
-                                  id="edit-message"
-                                  value={formData.message}
-                                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                                  rows={4}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-type">Type</Label>
-                                <Select value={formData.type} onValueChange={(value: Notification["type"]) => setFormData({ ...formData, type: value })}>
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="announcement">Announcement</SelectItem>
-                                    <SelectItem value="info">Info</SelectItem>
-                                    <SelectItem value="warning">Warning</SelectItem>
-                                    <SelectItem value="success">Success</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setEditingNotification(null)}>Cancel</Button>
-                              <Button onClick={handleEditNotification}>Save Changes</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => handleDeleteNotification(notification.id)}
-                        >
-                          <Trash2 className="w-3 h-3 text-destructive" />
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>Posted by {teacherName}</span>
+                      {notification.targetGroup && (
+                        <>
+                          <span>•</span>
+                          <span>Group: {notification.targetGroup}</span>
+                        </>
+                      )}
                     </div>
                   </div>
+                  <Button size="sm" variant="ghost" onClick={() => handleDeleteNotification(notification.id)}>
+                    <Trash2 className="w-3 h-3 text-destructive" />
+                  </Button>
                 </div>
               </div>
             ))}

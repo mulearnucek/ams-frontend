@@ -174,7 +174,6 @@ export default function TeacherHome() {
                         <Skeleton className="h-[420px] w-full" />
                     ) : (
                         <TeacherNotifications
-                            notifications={notifications}
                             teacherName={user?.first_name || user?.name || "Teacher"}
                         />
                     )}
