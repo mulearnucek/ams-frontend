@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { User } from "@/lib/types/UserTypes";
+import { UpdateUserData } from "@/lib/types/UserTypes";
 
 /* Helper to keep Label + Input spacing consistent */
 function FormField({
@@ -45,12 +46,56 @@ export default function ProfileForm({
     setUser((s) => (s ? { ...s, [k]: v } : s));
   };
 
-  const onSave = (e?: React.FormEvent) => {
+  const onSave = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    // TODO: call API (auth client / backend) to persist changes
-    setEditing(false);
-    setSavedMsg("Profile updated successfully.");
-    setTimeout(() => setSavedMsg(null), 3000);
+
+    if (!user) {
+      setSavedMsg("Error: User data is missing");
+      return;
+    }
+
+    try {
+      const updateData: UpdateUserData = {
+        first_name: user.first_name,
+        last_name: user.last_name,
+        phone: user.phone,
+        gender: user.gender,
+        // profile: user.profile,
+      };
+
+      // Use better-auth's update method instead of the admin endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(updateData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update profile");
+      }
+
+      const result = await response.json();
+
+      // Update local state with the response
+      if (result.data) {
+        setUser(result.data);
+      }
+
+      setEditing(false);
+      setSavedMsg("Profile updated successfully.");
+      setTimeout(() => setSavedMsg(null), 3000);
+    } catch (error) {
+      console.error(error);
+      setSavedMsg(
+        error instanceof Error
+          ? `Error: ${error.message}`
+          : "Failed to update profile.",
+      );
+    }
   };
 
   // If a page accidentally passes null/undefined, show safe message:
@@ -64,13 +109,33 @@ export default function ProfileForm({
 
   return (
     <form onSubmit={onSave} className="space-y-6">
-      {savedMsg && (
+      {/* {savedMsg && (
         <Alert
           variant="default"
           className="bg-emerald-50 border-emerald-200 text-emerald-900"
         >
           {savedMsg}
         </Alert>
+      )} */}
+
+      {/* Updated  success message*/}
+      {savedMsg && (
+        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 px-4 py-2 rounded-md">
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          {savedMsg}
+        </div>
       )}
 
       <div className="flex items-center justify-between">
@@ -173,6 +238,7 @@ export default function ProfileForm({
         <div className="mt-6">
           {user.role === "student" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+              {/* Editable */}
               <FormField label="Admission Number">
                 <Input
                   value={(user.profile as any)?.adm_number || ""}
@@ -183,8 +249,7 @@ export default function ProfileForm({
                 />
               </FormField>
 
-              {/* Editable */}
-              <FormField label="Admission Year">
+              {/* <FormField label="Admission Year">
                 <Input
                   value={
                     (user.profile as any)?.adm_year
@@ -200,9 +265,9 @@ export default function ProfileForm({
                   }}
                   disabled
                 />
-              </FormField>
+              </FormField> */}
 
-              <FormField label="Candidate Code">
+              {/* <FormField label="Candidate Code">
                 <Input
                   value={(user.profile as any)?.candidate_code || ""}
                   onChange={(e) =>
@@ -210,9 +275,9 @@ export default function ProfileForm({
                   }
                   disabled
                 />
-              </FormField>
+              </FormField> */}
 
-              <FormField label="Department">
+              {/* <FormField label="Department">
                 <Input
                   value={(user.profile as any)?.department || ""}
                   onChange={(e) =>
@@ -220,9 +285,9 @@ export default function ProfileForm({
                   }
                   disabled
                 />
-              </FormField>
+              </FormField> */}
 
-              <FormField label="Date of Birth">
+              {/* <FormField label="Date of Birth">
                 <Input
                   type="date"
                   value={(user.profile as any)?.date_of_birth || ""}
@@ -231,7 +296,7 @@ export default function ProfileForm({
                   }
                   disabled
                 />
-              </FormField>
+              </FormField> */}
             </div>
           )}
 
