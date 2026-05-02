@@ -17,6 +17,9 @@ import {
   listMyNotifications,
   type NotificationRecord
 } from "@/lib/api/notification";
+import { Bell, Plus, Edit, Trash2, AlertCircle, Info, CheckCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/lib/auth-context";
 
 type TeacherNotificationsProps = {
   teacherName: string;
@@ -131,6 +134,10 @@ const getTypeBadge = (typeValue: string) => {
 
 export default function TeacherNotifications({ teacherName }: TeacherNotificationsProps) {
   const [notifications, setNotifications] = useState<UiNotification[]>([]);
+export default function TeacherNotifications({ notifications, teacherName }: TeacherNotificationsProps) {
+  const { config } = useAuth();
+  if (!config["feature/notifications"]) return null;
+  const [notificationsList, setNotificationsList] = useState<Notification[]>(notifications);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

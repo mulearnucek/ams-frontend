@@ -21,6 +21,11 @@ import {
   type NotificationRecord
 } from "@/lib/api/notification";
 import { useAuth } from "@/lib/auth-context";
+import { AlertCircle, Badge, Bell, CheckCircle, Info } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 type UiNotification = {
   id: string;
@@ -217,6 +222,59 @@ export default function NotificationsPage() {
       setNotifications((prev) => prev.filter((notification) => notification.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete notification");
+// TODO: Replace with actual API calls
+const notifications :Notification[] = [
+    {
+      id: "1",
+      title: "Mid-Semester Exam Schedule Released",
+      message: "Mid-semester exams will be conducted from December 20-27. Check your timetable for details.",
+      type: "announcement" as const,
+      postedBy: "Dr. Sarah Johnson",
+      postedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      isRead: false,
+    },
+    {
+      id: "2",
+      title: "Lab Session Rescheduled",
+      message: "Tomorrow's Database Lab is rescheduled to 2:00 PM instead of 10:00 AM.",
+      type: "warning" as const,
+      postedBy: "Prof. Michael Chen",
+      postedAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      isRead: false,
+    },
+    {
+      id: "3",
+      title: "Library Books Due",
+      message: "Your borrowed books are due on December 15. Please return or renew them.",
+      type: "info" as const,
+      postedBy: "Library Department",
+      postedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      isRead: true,
+    },
+  ];
+
+export default function StudentDashboardPage() {
+  const { config } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (config["feature/notifications"] === false) {
+      router.replace("/dashboard");
+    }
+  }, [config, router]);
+
+  if (!config["feature/notifications"]) return null;
+
+   const getNotificationIcon = (type: Notification["type"]) => {
+    switch (type) {
+      case "warning":
+        return <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />;
+      case "success":
+        return <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />;
+      case "info":
+        return <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+      default:
+        return <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />;
     }
   };
 
