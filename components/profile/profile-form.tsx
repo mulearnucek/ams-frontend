@@ -9,6 +9,15 @@ import { Alert } from "@/components/ui/alert";
 import { User } from "@/lib/types/UserTypes";
 import { UpdateUserData } from "@/lib/types/UserTypes";
 
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { any } from "zod";
+
 /* Helper to keep Label + Input spacing consistent */
 function FormField({
   label,
@@ -60,7 +69,7 @@ export default function ProfileForm({
         last_name: user.last_name,
         phone: user.phone,
         gender: user.gender,
-        // profile: user.profile,
+        profile: user.profile as any,
       };
 
       // Use better-auth's update method instead of the admin endpoint
@@ -109,20 +118,11 @@ export default function ProfileForm({
 
   return (
     <form onSubmit={onSave} className="space-y-6">
-      {/* {savedMsg && (
-        <Alert
-          variant="default"
-          className="bg-emerald-50 border-emerald-200 text-emerald-900"
-        >
-          {savedMsg}
-        </Alert>
-      )} */}
-
       {/* Updated  success message*/}
       {savedMsg && (
-        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 px-4 py-2 rounded-md">
+        <div className="flex items-center gap-2 text-sm bg-muted text-foreground border border-input px-4 py-2 rounded-md shadow-sm">
           <svg
-            className="w-4 h-4"
+            className="w-4 h-4 text-primary"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -165,7 +165,7 @@ export default function ProfileForm({
             <Input
               value={user.first_name ?? ""}
               onChange={(e) => onChange("first_name", e.target.value)}
-              disabled={!editing}
+              disabled
             />
           </FormField>
 
@@ -174,7 +174,7 @@ export default function ProfileForm({
             <Input
               value={user.last_name ?? ""}
               onChange={(e) => onChange("last_name", e.target.value)}
-              disabled={!editing}
+              disabled
             />
           </FormField>
 
@@ -192,7 +192,7 @@ export default function ProfileForm({
           </FormField>
 
           {/* Editable */}
-          <FormField label="Gender">
+          {/* <FormField label="Gender">
             <div className="relative">
               <select
                 aria-label="Gender"
@@ -208,7 +208,7 @@ export default function ProfileForm({
                   "h-10 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors",
                   "py-0 appearance-none leading-5",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
+                  "disabled:cursor-not-allowed disabled:opacity-50 ",
                 ].join(" ")}
               >
                 <option value="">Select</option>
@@ -231,11 +231,35 @@ export default function ProfileForm({
                 />
               </svg>
             </div>
+          </FormField> */}
+          
+          {/* UPdated form field */}
+          <FormField label="Gender">
+            <Select
+              value={user.gender ?? ""}
+              onValueChange={(value) =>
+                onChange("gender", value as User["gender"])
+              }
+              disabled={!editing}
+            >
+              <SelectTrigger className="h-10 w-full">
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
           </FormField>
         </div>
 
         {/* role-specific fields */}
         <div className="mt-6">
+          {/* {user.role === "admin" && (
+
+          )} */}
           {user.role === "student" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
               {/* Editable */}
@@ -287,16 +311,16 @@ export default function ProfileForm({
                 />
               </FormField> */}
 
-              {/* <FormField label="Date of Birth">
+              <FormField label="Date of Birth">
                 <Input
                   type="date"
                   value={(user.profile as any)?.date_of_birth || ""}
                   onChange={(e) =>
                     onProfileChange("date_of_birth", e.target.value)
                   }
-                  disabled
+                  disabled={!editing}
                 />
-              </FormField> */}
+              </FormField>
             </div>
           )}
 
@@ -323,7 +347,7 @@ export default function ProfileForm({
                   onChange={(e) =>
                     onProfileChange("designation", e.target.value)
                   }
-                  disabled={!editing}
+                  disabled
                 />
               </FormField>
 
@@ -333,7 +357,7 @@ export default function ProfileForm({
                   onChange={(e) =>
                     onProfileChange("department", e.target.value || undefined)
                   }
-                  disabled={!editing}
+                  disabled
                 />
               </FormField>
 
@@ -344,7 +368,7 @@ export default function ProfileForm({
                   onChange={(e) =>
                     onProfileChange("date_of_joining", e.target.value)
                   }
-                  disabled={!editing}
+                  disabled
                 />
               </FormField>
             </div>
