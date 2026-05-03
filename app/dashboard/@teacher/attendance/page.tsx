@@ -583,6 +583,7 @@ export default function AttendancePage() {
       )}
 
       {/* Quick Info */}
+      <div className="pb-15">
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Quick Tips</CardTitle>
@@ -594,6 +595,7 @@ export default function AttendancePage() {
           <p>• Sessions are automatically timestamped</p>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

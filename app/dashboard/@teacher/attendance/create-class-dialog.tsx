@@ -143,10 +143,10 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
           {/* Schedule Preview */}
           <div className="bg-muted rounded-lg p-4 space-y-3">
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-2 min-w-0">
-                <BookOpen className="h-4 w-4 text-primary mt-1 shrink-0" />
+              <div className="flex items-top gap-1.5 min-w-0">
+                <BookOpen className="h-4 w-4 text-primary mt-5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold truncate">
+                  <p className="font-semibold line-clamp-2 break-words">
                     {selectedSubject ? selectedSubject.name : <span className="text-muted-foreground font-normal">No subject selected</span>}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -157,7 +157,7 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
               <div className="flex items-center gap-1.5 shrink-0">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">
-                  {selectedBatch ? `${selectedBatch.name} · ${selectedBatch.adm_year}` : "No batch selected"}
+                  {selectedBatch ? `${selectedBatch.name}` : "No batch selected"}
                 </span>
               </div>
             </div>
@@ -183,10 +183,10 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
                 <SelectTrigger>
                   <SelectValue placeholder={loadingData ? "Loading..." : "Select batch"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent >
                   {batches.map((batch) => (
                     <SelectItem key={batch._id} value={batch._id}>
-                      {batch.name} ({batch.adm_year})
+                      {batch.name} 
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -194,16 +194,22 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
             </div>
             <div className="space-y-2">
               <Label>Subject</Label>
+              
               <Select value={subjectId} onValueChange={setSubjectId} disabled={loadingData}>
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingData ? "Loading..." : "Select subject"} />
+                <SelectTrigger className="min-w-0 max-w-full">
+                  <SelectValue className="truncate block" placeholder={loadingData ? "Loading..." : "Select subject"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-full max-w-[95vw]" >
+                  <div className="pb-2">
                   {subjects.map((subject) => (
                     <SelectItem key={subject._id} value={subject._id}>
-                      {subject.name} ({subject.subject_code})
+                      
+                     <span className="block  w-full truncate">
+                        {subject.name} ({subject.subject_code})
+                      </span>
                     </SelectItem>
                   ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
