@@ -257,9 +257,7 @@ export default function ProfileForm({
 
         {/* role-specific fields */}
         <div className="mt-6">
-          {/* {user.role === "admin" && (
 
-          )} */}
           {user.role === "student" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
               {/* Editable */}

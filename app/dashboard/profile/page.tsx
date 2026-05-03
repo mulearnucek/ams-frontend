@@ -42,25 +42,7 @@ export default function ProfilePage() {
   const isAdmin = user.role === "admin";
   const isTearcher = user.role === "teacher";
 
-  // Profile Completion
-  // const getProfileCompletion = () => {
-  //   const fields = [
-  //     user.first_name,
-  //     user.last_name,
-  //     user.email,
-  //     user.phone,
-  //     user.gender,
-  //     user.image,
-  //     isStudent && (user.profile as any)?.adm_number,
-  //     isStudent && (user.profile as any)?.department,
-  //     isStudent && (user.profile as any)?.adm_year,
-  //   ];
 
-  //   const filled = fields.filter((f) => f && f !== "" && f !== "gen").length;
-  //   return Math.round((filled / fields.length) * 100);
-  // };
-
-  // const completion = getProfileCompletion();
 
   return (
     <main className="min-h-screen bg-background">
@@ -112,7 +94,7 @@ export default function ProfilePage() {
                 <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all duration-500"
-                    style={{ width: ${completion}% }}
+                    style={{ width: `${completion}%` }}
                   />
                 </div>
 
@@ -183,6 +165,7 @@ export default function ProfilePage() {
                 {/* Student-only fields */}
                 {isStudent && (
                   <>
+                    
                     {/* Candidate Code */}
                     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40">
                       <div className="w-8 h-8 rounded-lg bg-background border flex items-center justify-center">
