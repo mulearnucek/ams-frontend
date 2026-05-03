@@ -163,7 +163,8 @@ const getPriorityRank = (priorityLevel: string) => {
 };
 
 export default function TeacherNotifications({ teacherName }: TeacherNotificationsProps) {
-  const { user } = useAuth();
+  const { user, config } = useAuth();
+  const notificationsEnabled = Boolean(config["feature/notifications"]);
   const [notifications, setNotifications] = useState<UiNotification[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -186,6 +187,7 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
   });
 
   const fetchNotifications = useCallback(async () => {
+    if (!notificationsEnabled) return;
     try {
       setLoading(true);
       setError(null);
@@ -200,8 +202,9 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
   }, []);
 
   useEffect(() => {
+    if (!notificationsEnabled) return;
     fetchNotifications();
-  }, [fetchNotifications]);
+  }, [fetchNotifications, notificationsEnabled]);
 
   useEffect(() => {
     const fetchBatches = async () => {
@@ -363,6 +366,10 @@ export default function TeacherNotifications({ teacherName }: TeacherNotificatio
       return bTime - aTime;
     });
   }, [notifications]);
+
+  if (!notificationsEnabled) {
+    return null;
+  }
 
   return (
     <Card className="h-auto lg:h-[560px]">

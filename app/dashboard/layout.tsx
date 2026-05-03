@@ -31,8 +31,9 @@ export default function DashboardLayout({
 }>) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading, session, incompleteProfile } = useAuth();
+  const { user, isLoading, session, incompleteProfile, config } = useAuth();
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
+  const notificationsEnabled = Boolean(config["feature/notifications"]);
 
   const profileImageConfig: ReturnType<typeof genConfig> = useMemo(() => {
     const gender = user?.gender?.toLowerCase();
@@ -72,10 +73,13 @@ export default function DashboardLayout({
     }
 
     // Common items for all roles
-    baseItems.push(
-      { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
-      //{ icon: <Book size={18} />, label: 'Assignments', onClick: () => router.push('/dashboard/assignments') },
-    );
+    if (notificationsEnabled) {
+      baseItems.push(
+        { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
+      );
+    }
+
+    //{ icon: <Book size={18} />, label: 'Assignments', onClick: () => router.push('/dashboard/assignments') },
 
     // Profile item (always last)
     baseItems.push({
@@ -92,7 +96,7 @@ export default function DashboardLayout({
     });
 
     return baseItems;
-  }, [router, user, profileImageConfig]);
+  }, [notificationsEnabled, router, user, profileImageConfig]);
 
   useEffect(() => {
     // Still loading, don't do anything yet
@@ -110,6 +114,13 @@ export default function DashboardLayout({
       return;
     }
   }, [isLoading, session, user, incompleteProfile, router]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!notificationsEnabled && pathname.startsWith('/dashboard/notifications')) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, notificationsEnabled, pathname, router]);
 
   if (isLoading) {
     return <Loading />;

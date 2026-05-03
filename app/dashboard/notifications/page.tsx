@@ -161,7 +161,8 @@ const getPriorityRank = (priorityLevel: string) => {
 };
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
+  const { user, config } = useAuth();
+  const notificationsEnabled = Boolean(config["feature/notifications"]);
   const [notifications, setNotifications] = useState<UiNotification[]>([]);
   const [readIds, setReadIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,9 +205,10 @@ export default function NotificationsPage() {
   }, []);
 
   useEffect(() => {
+    if (!notificationsEnabled) return;
     fetchNotifications();
     fetchIsStaff();
-  }, [fetchNotifications, fetchIsStaff]);
+  }, [fetchNotifications, fetchIsStaff, notificationsEnabled]);
 
   useEffect(() => {
     if (!user?._id) return;
@@ -239,6 +241,16 @@ export default function NotificationsPage() {
       return bTime - aTime;
     });
   }, [notifications]);
+
+  useEffect(() => {
+    if (!notificationsEnabled) {
+      window.location.replace("/dashboard");
+    }
+  }, [notificationsEnabled]);
+
+  if (!notificationsEnabled) {
+    return null;
+  }
 
   const handleRetry = () => {
     fetchNotifications();
