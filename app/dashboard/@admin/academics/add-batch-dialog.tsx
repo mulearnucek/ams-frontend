@@ -45,6 +45,7 @@ const createBatchSchema = z.object({
   department: z.enum(["CSE", "ECE", "IT"] as const),
   staff_advisor: z.string().min(1, "Staff advisor is required"),
   scheme: z.string().min(1, "Scheme is required"),
+  sem: z.string().min(1, "Semester is required"),
 });
 
 type CreateBatchFormValues = z.infer<typeof createBatchSchema>;
@@ -71,6 +72,7 @@ export function AddBatchDialog({ open, onOpenChange, onSuccess }: AddBatchDialog
       department: "CSE",
       staff_advisor: "",
       scheme: "",
+      sem: "1",
     },
   });
 
@@ -230,6 +232,20 @@ export function AddBatchDialog({ open, onOpenChange, onSuccess }: AddBatchDialog
                   <FormLabel>Scheme *</FormLabel>
                   <FormControl>
                     <Input placeholder="2019" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="sem"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Semester *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="1" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

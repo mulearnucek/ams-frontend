@@ -71,6 +71,7 @@ const updateBatchSchema = z.object({
   department: z.enum(["CSE", "ECE", "IT"] as const),
   staff_advisor: z.string().min(1, "Staff advisor is required"),
   scheme: z.string().min(1, "Scheme is required"),
+  sem: z.string().min(1, "Semester is required"),
 });
 
 type UpdateBatchFormValues = z.infer<typeof updateBatchSchema>;
@@ -132,6 +133,7 @@ export function BatchDialog({
       department:    "CSE",
       staff_advisor: "",
       scheme:        "",
+      sem:           "",
     },
   });
 
@@ -201,6 +203,7 @@ export function BatchDialog({
       department:    batch.department,
       staff_advisor: batch.staff_advisor?._id || "",
       scheme:        batch.scheme || "",
+      sem:           batch.sem || "1",
     });
 
     setError(null);
@@ -386,6 +389,20 @@ export function BatchDialog({
 
                     <FormField
                       control={form.control}
+                      name="sem"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Semester *</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="department"
                       render={({ field }) => (
                         <FormItem>
@@ -507,6 +524,11 @@ export function BatchDialog({
                     icon={<BookOpen className="h-4 w-4" />}
                     label="Scheme"
                     value={batch.scheme || "—"}
+                  />
+                  <StatCard
+                    icon={<BookOpen className="h-4 w-4" />}
+                    label="Semester"
+                    value={batch.sem || "—"}
                   />
                   <StatCard
                     icon={<Calendar className="h-4 w-4" />}

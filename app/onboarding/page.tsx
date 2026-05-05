@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import Image from "next/image"
 import { SignUpUserAuthForm } from "./user-auth-form"
+import Logo from "@/components/logo"
 
 export const metadata: Metadata = {
   title: "AMS - Onboarding",
@@ -18,7 +19,7 @@ export default function OnboardingPage() {
           />
           <div className="absolute inset-0 bg-black/40" />
           <div className="relative z-20 flex items-center text-lg font-medium">
-            <Image src="/logo-ucek.svg" alt="Logo" width={56} height={56} className="mr-2 h-10 w-auto lg:h-14 brightness-0 invert" />
+            <Logo className="mr-2 h-10 w-auto lg:h-14 brightness-0 invert" />
           </div>
         </div>
         <div className="w-full items-center justify-center lg:p-0 lg:h-screen lg:overflow-y-auto">

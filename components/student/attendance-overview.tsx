@@ -66,14 +66,14 @@ export default function AttendanceOverview({ attendance }: AttendanceOverviewPro
   }
 
   return (
-    <Card>
+    <Card className="h-auto lg:h-[560px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CalendarCheck className="w-5 h-5" />
           Attendance
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1 min-h-0 overflow-y-auto">
         {/* Overall Attendance */}
         <div className="p-4 bg-muted/50 rounded-lg">
           <div className="bloc mb-2">

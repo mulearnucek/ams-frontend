@@ -9,7 +9,10 @@ import {
   type SpringOptions,
   AnimatePresence
 } from 'framer-motion';
-import React, { Children, cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Children, cloneElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { getUnreadCount } from '@/lib/api/notification';
+import { useAuth } from '@/lib/auth-context';
 
 export type DockItemData = {
   icon: React.ReactNode;
@@ -130,10 +133,23 @@ type DockIconProps = {
   className?: string;
   children: React.ReactNode;
   isHovered?: MotionValue<number>;
+  badgeCount?: number;
 };
 
-function DockIcon({ children, className = '' }: DockIconProps) {
-  return <div className={`flex items-center justify-center ${className}`}>{children}</div>;
+function DockIcon({ children, className = '', badgeCount }: DockIconProps) {
+  return (
+    <div className={`relative flex items-center justify-center ${className}`}>
+      {children}
+      {badgeCount && badgeCount > 0 ? (
+        <span
+          className="absolute -right-1 -top-1 flex h-5 min-w-[20px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground"
+          aria-label={`${badgeCount} unread notifications`}
+        >
+          {badgeCount > 99 ? '99+' : badgeCount}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export default function Dock({
@@ -148,6 +164,18 @@ export default function Dock({
 }: DockProps) {
   const mouseX = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const refreshUnreadCount = useCallback(async () => {
+    try {
+      const count = await getUnreadCount(user?._id);
+      setUnreadCount(count);
+    } catch {
+      setUnreadCount(0);
+    }
+  }, [user?._id]);
 
   const maxHeight = useMemo(
     () => Math.max(dockHeight, magnification + magnification / 2 + 4),
@@ -155,6 +183,33 @@ export default function Dock({
   );
   const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
   const height = useSpring(heightRow, spring);
+
+  useEffect(() => {
+    refreshUnreadCount();
+  }, [pathname, refreshUnreadCount]);
+
+  useEffect(() => {
+    const handleRefresh = () => refreshUnreadCount();
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key && event.key.startsWith('ams:notifications:read:')) {
+        refreshUnreadCount();
+      }
+    };
+
+    window.addEventListener('focus', handleRefresh);
+    window.addEventListener('visibilitychange', handleRefresh);
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('ams:notifications:updated', handleRefresh as EventListener);
+
+    const interval = setInterval(refreshUnreadCount, 20000);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleRefresh);
+      window.removeEventListener('visibilitychange', handleRefresh);
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('ams:notifications:updated', handleRefresh as EventListener);
+    };
+  }, [refreshUnreadCount]);
 
   return (
     <>
@@ -174,40 +229,58 @@ export default function Dock({
           role="toolbar"
           aria-label="Application dock"
         >
-          {items.map((item, index) => (
-            <DockItem
-              key={index}
-              onClick={item.onClick}
-              className={item.className}
-              mouseX={mouseX}
-              spring={spring}
-              distance={distance}
-              magnification={magnification}
-              baseItemSize={baseItemSize}
-            >
-              <DockIcon>{item.icon}</DockIcon>
-              <DockLabel>{item.label}</DockLabel>
-            </DockItem>
-          ))}
+          {items.map((item, index) => {
+            const isNotifications = typeof item.label === 'string' && item.label.toLowerCase() === 'notifications';
+            const badgeCount = isNotifications ? unreadCount : 0;
+
+            return (
+              <DockItem
+                key={index}
+                onClick={item.onClick}
+                className={item.className}
+                mouseX={mouseX}
+                spring={spring}
+                distance={distance}
+                magnification={magnification}
+                baseItemSize={baseItemSize}
+              >
+                <DockIcon badgeCount={badgeCount}>{item.icon}</DockIcon>
+                <DockLabel>{item.label}</DockLabel>
+              </DockItem>
+            );
+          })}
         </motion.div>
       </motion.div>
 
       {/* Mobile Bottom Navigation */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border">
         <nav className="flex justify-around items-center h-16 px-2" role="navigation" aria-label="Mobile navigation">
-          {items.map((item, index) => (
-            <button
-              key={index}
-              onClick={item.onClick}
-              className={`flex flex-col items-center justify-center gap-1 flex-1 h-full text-muted-foreground hover:text-foreground transition-colors ${item.className || ''}`}
-              aria-label={typeof item.label === 'string' ? item.label : undefined}
-            >
-              <div className="flex items-center justify-center">
-                {item.icon}
-              </div>
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </button>
-          ))}
+          {items.map((item, index) => {
+            const isNotifications = typeof item.label === 'string' && item.label.toLowerCase() === 'notifications';
+            const badgeCount = isNotifications ? unreadCount : 0;
+
+            return (
+              <button
+                key={index}
+                onClick={item.onClick}
+                className={`flex flex-col items-center justify-center gap-1 flex-1 h-full text-muted-foreground hover:text-foreground transition-colors ${item.className || ''}`}
+                aria-label={typeof item.label === 'string' ? item.label : undefined}
+              >
+                <div className="relative flex items-center justify-center">
+                  {item.icon}
+                  {badgeCount > 0 ? (
+                    <span
+                      className="absolute -right-1 -top-1 flex h-5 min-w-[20px] -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground"
+                      aria-label={`${badgeCount} unread notifications`}
+                    >
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  ) : null}
+                </div>
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
       </div>
     </>

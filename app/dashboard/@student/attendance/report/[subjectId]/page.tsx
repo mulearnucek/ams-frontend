@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, CalendarDays } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
 import { listAttendanceRecords, type AttendanceRecord } from "@/lib/api/attendance-record";
 import { getAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
@@ -36,11 +36,79 @@ const getStatusCell = (status?: string) => {
 
 const isAttendedStatus = (status?: string) => status === "present" || status === "late" || status === "excused";
 
+const getRowDateValue = (row: SessionRow) => row.record?.marked_at || row.session?.start_time;
+
+const toDate = (value?: string | Date | null) => {
+  if (!value) return null;
+  if (typeof value === "string") {
+    try {
+      return parseISO(value);
+    } catch (e) {
+      return new Date(value);
+    }
+  }
+  if (value instanceof Date) return value;
+  return new Date(value as any);
+};
+
+const formatRowDate = (row: SessionRow) => {
+  const dateValue = getRowDateValue(row);
+  if (!dateValue) return "-";
+  const d = toDate(dateValue);
+  return d ? format(d, "dd/MM") : "-";
+};
+
+const formatRowDateTime = (row: SessionRow) => {
+  const startValue = getRowDateValue(row);
+  if (!startValue) return "-";
+  const start = toDate(startValue)!;
+  const end = row.session?.end_time ? toDate(row.session.end_time) : null;
+  const dateLabel = format(start, "dd MMM, yyyy");
+  if (end) {
+    return `${dateLabel} • ${format(start, "hh:mm a")} - ${format(end, "hh:mm a")}`;
+  }
+  return `${dateLabel} • ${format(start, "hh:mm a")}`;
+};
+
+const roundDownToHour = (date: Date) => {
+  const rounded = new Date(date);
+  rounded.setMinutes(0, 0, 0);
+  return rounded;
+};
+
+const roundUpToHour = (date: Date) => {
+  const rounded = new Date(date);
+  rounded.setMinutes(0, 0, 0);
+  if (date.getMinutes() !== 0 || date.getSeconds() !== 0 || date.getMilliseconds() !== 0) {
+    rounded.setHours(rounded.getHours() + 1);
+  }
+  return rounded;
+};
+
+const formatRoundedSessionTime = (row: SessionRow) => {
+  const startValue = getRowDateValue(row);
+  if (!startValue) return "-";
+
+  const sessionStart = toDate(startValue)!;
+  const sessionEnd = row.session?.end_time ? toDate(row.session.end_time) : null;
+  const roundedStart = roundDownToHour(sessionStart);
+  const roundedEnd = sessionEnd ? roundUpToHour(sessionEnd) : null;
+
+  if (roundedEnd) {
+    return `${format(roundedStart, "hh:mm a")} - ${format(roundedEnd, "hh:mm a")}`;
+  }
+
+  return format(roundedStart, "hh:mm a");
+};
+
 export default function StudentSubjectReportPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const subjectId = params.subjectId as string | undefined;
+  const subjectNameFromQuery = searchParams.get("subjectName") || undefined;
+  const semesterFromQuery = searchParams.get("semester") || undefined;
 
   const [rows, setRows] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,11 +158,12 @@ export default function StudentSubjectReportPage() {
           record: recordsBySession.get(id) ?? null,
         }));
 
+        // Robust sorting: Newest sessions first
         reportRows.sort((a, b) => {
-          const aDate = a.session?.start_time || a.record?.marked_at;
-          const bDate = b.session?.start_time || b.record?.marked_at;
-          if (!aDate || !bDate) return 0;
-          return new Date(bDate).getTime() - new Date(aDate).getTime();
+          const aDate = toDate(getRowDateValue(a))?.getTime() || 0;
+          const bDate = toDate(getRowDateValue(b))?.getTime() || 0;
+          if (aDate !== bDate) return bDate - aDate;
+          return (b.session?._id || "").localeCompare(a.session?._id || "");
         });
 
         setRows(reportRows);
@@ -116,32 +185,41 @@ export default function StudentSubjectReportPage() {
     const percentage = total > 0 ? Math.round((attended / total) * 100) : 0;
 
     const subjectName =
+      subjectNameFromQuery ||
       rows.find((row) => row.session?.subject?.name)?.session?.subject?.name ||
       rows.find((row) => row.record?.session?.subject?.name)?.record?.session?.subject?.name ||
       "Subject";
+
+    const semester =
+      semesterFromQuery ||
+      rows.find((row) => row.session?.subject?.sem)?.session?.subject?.sem ||
+      rows.find((row) => row.record?.session?.subject?.sem)?.record?.session?.subject?.sem ||
+      undefined;
 
     const batchName =
       rows.find((row) => row.session?.batch?.name)?.session?.batch?.name ||
       rows.find((row) => row.record?.session?.batch?.name)?.record?.session?.batch?.name ||
       "Batch";
 
-    return { total, attended, percentage, subjectName, batchName };
-  }, [rows]);
+    return { total, attended, percentage, subjectName, batchName, semester };
+  }, [rows, subjectNameFromQuery, semesterFromQuery]);
 
   const sessionData = useMemo(() => {
-    const sessions = rows
-      .map((row) => row.session)
-      .filter((session): session is AttendanceSession => Boolean(session))
-      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-
+    const rowBySessionId = new Map<string, SessionRow>();
     const statusBySession = new Map<string, string | undefined>();
+    
+    // We derive sessions directly from the rows to maintain the exact order set in useEffect
+    const sessions: AttendanceSession[] = [];
+    
     rows.forEach((row) => {
       if (row.session?._id) {
+        sessions.push(row.session);
+        rowBySessionId.set(row.session._id, row);
         statusBySession.set(row.session._id, row.record?.status);
       }
     });
 
-    return { sessions, statusBySession };
+    return { sessions, statusBySession, rowBySessionId };
   }, [rows]);
 
   return (
@@ -184,18 +262,19 @@ export default function StudentSubjectReportPage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
               <div>Batch: {summary.batchName}</div>
+              {summary.semester ? <div>Semester: S{summary.semester}</div> : null}
               <div>
                 {summary.attended} / {summary.total} classes attended ({summary.percentage}%)
               </div>
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border shadow-sm flex flex-col">
+          <Card className="overflow-hidden border shadow-sm hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left border-collapse m-0 p-0">
                 <thead className="text-muted-foreground font-medium text-xs">
-                  <tr>
-                    <th colSpan={sessionData.sessions.length + 2} className="px-4 py-3 border-none font-normal bg-muted">
+                  <tr className="bg-muted">
+                    <th colSpan={sessionData.sessions.length + 2} className="px-4 py-3 border-none font-normal">
                       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                         <div className="flex items-baseline gap-2">
                           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subject</span>
@@ -214,7 +293,7 @@ export default function StudentSubjectReportPage() {
                     {sessionData.sessions.map((session) => (
                       <th key={session._id} className="px-2 py-3 border-b text-center min-w-[60px] bg-muted">
                         <div className="flex flex-col items-center">
-                          <span>{format(new Date(session.start_time), "dd/MM")}</span>
+                          <span>{format(toDate(sessionData.rowBySessionId.get(session._id)?.record?.marked_at || session.start_time)!, "dd/MM")}</span>
                         </div>
                       </th>
                     ))}
@@ -223,16 +302,13 @@ export default function StudentSubjectReportPage() {
                 </thead>
                 <tbody className="divide-y">
                   <tr className="hover:bg-muted/20">
-                    <td className="px-4 py-3 sticky left-0 z-10 bg-background group-hover:bg-muted/20 font-medium">
+                    <td className="px-4 py-3 sticky left-0 z-10 bg-background font-medium">
                       <div className="flex flex-col">
                         <span className="text-foreground">
                           {user?.name || `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || "Student"}
                         </span>
                         <span className="text-xs text-muted-foreground w-[120px] overflow-hidden text-ellipsis whitespace-nowrap block" dir="rtl" style={{ textAlign: "left" }}>
-                          {(user?.profile as { candidate_code?: string; adm_number?: string } | undefined)?.candidate_code ||
-                            (user?.profile as { adm_number?: string } | undefined)?.adm_number ||
-                            user?.email ||
-                            user?._id}
+                          {(user?.profile as any)?.candidate_code || (user?.profile as any)?.adm_number || user?.email || user?._id}
                         </span>
                       </div>
                     </td>
@@ -256,24 +332,60 @@ export default function StudentSubjectReportPage() {
             </div>
           </Card>
 
-          <Card>
+          <Card className="md:hidden">
+            <CardHeader>
+              <CardTitle className="text-base">Attendance Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Student</span>
+                <span className={summary.percentage < 75 ? "text-red-600" : summary.percentage >= 90 ? "text-green-600" : ""}>
+                  {summary.percentage}%
+                </span>
+              </div>
+              <div className="rounded-md border">
+                <div className="grid grid-cols-2 gap-2 px-3 py-2 text-xs font-medium text-muted-foreground bg-muted">
+                  <span>Date</span>
+                  <span className="text-right">Status</span>
+                </div>
+                <div className="divide-y">
+                  {rows.map((row) => {
+                    const badge = getStatusBadge(row.record?.status);
+                    return (
+                      <div key={row.session?._id || row.record?._id} className="grid grid-cols-2 gap-2 px-3 py-2 text-sm">
+                        <div className="space-y-1">
+                          <div className="text-foreground">{formatRowDate(row)}</div>
+                          <div className="text-xs text-muted-foreground">{formatRowDateTime(row)}</div>
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <Badge className={badge.className}>{badge.label}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hidden md:block">
             <CardHeader>
               <CardTitle className="text-base">Session Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
+            <CardContent className="space-y-2 text-sm max-h-72 overflow-y-auto">
               {rows.map((row) => {
                 const status = row.record?.status;
                 const badge = getStatusBadge(status);
-                const startTime = row.session?.start_time || row.record?.marked_at;
+                const startTime = getRowDateValue(row);
                 const endTime = row.session?.end_time;
 
                 return (
                   <div key={row.session?._id || row.record?._id} className="flex flex-wrap items-center justify-between gap-2 border-b border-muted/30 pb-2">
                     <div className="text-muted-foreground">
-                      {startTime ? format(new Date(startTime), "MMM dd, yyyy") : "-"}
+                      {startTime ? format(toDate(startTime)!, "MMM dd, yyyy") : "-"}
                       {startTime && endTime && (
                         <span className="ml-2">
-                          {format(new Date(startTime), "hh:mm a")} - {format(new Date(endTime), "hh:mm a")}
+                          {formatRoundedSessionTime(row)}
                         </span>
                       )}
                     </div>

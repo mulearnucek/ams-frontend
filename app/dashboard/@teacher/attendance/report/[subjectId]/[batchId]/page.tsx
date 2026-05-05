@@ -144,7 +144,7 @@ export default function ClassReportPage() {
                     </th>
                   </tr>
                   <tr className="uppercase bg-muted">
-                    <th className="px-4 py-3 border-b sticky left-0 z-20 bg-muted min-w-[200px]">Student Name</th>
+                    <th className="px-4 py-3 border-b min-w-[200px] md:sticky md:left-0 md:z-20 md:bg-muted">Student Name</th>
                     {data?.sessions.map(session => (
                       <th key={session._id} className="px-2 py-3 border-b text-center min-w-[60px] bg-muted">
                         <Tooltip>
@@ -162,13 +162,13 @@ export default function ClassReportPage() {
                         </Tooltip>
                       </th>
                     ))}
-                    <th className="px-4 py-3 border-b text-center sticky right-0 z-20 bg-muted shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Percentage</th>
+                    <th className="px-4 py-3 border-b text-center md:sticky md:right-0 md:z-20 md:bg-muted md:shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">Percentage</th>
                   </tr>
                 </thead>
               <tbody className="divide-y">
                 {data?.students.map(student => (
                   <tr key={student._id} className="hover:bg-muted/20">
-                    <td className="px-4 py-3 sticky left-0 z-10 bg-background group-hover:bg-muted/20 font-medium">
+                    <td className="px-4 py-3 font-medium md:sticky md:left-0 md:z-10 md:bg-background md:group-hover:bg-muted/20">
                       <div className="flex flex-col">
                         <span 
                           className="hover:underline cursor-pointer text-foreground"
@@ -206,7 +206,7 @@ export default function ClassReportPage() {
                         </td>
                       );
                     })}
-                    <td className="px-4 py-3 text-center font-bold sticky right-0 z-10 bg-background shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
+                    <td className="px-4 py-3 text-center font-bold md:sticky md:right-0 md:z-10 md:bg-background md:shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
                       <span className={student.percentage < 75 ? "text-red-600" : student.percentage >= 90 ? "text-green-600" : ""}>
                         {student.percentage}%
                       </span>

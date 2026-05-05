@@ -97,18 +97,19 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
 
         <div className="space-y-6">
           {/* Class Info + Schedule Preview */}
-          <div className="bg-muted rounded-lg p-4 space-y-3">
+          <div className="bg-muted rounded-lg p-5 space-y-3">
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-2 min-w-0">
-                <BookOpen className="h-4 w-4 text-primary mt-1 shrink-0" />
+              <div className="flex items-top gap-1.5 min-w-0">
+                <BookOpen className="h-4 w-4 text-primary mt-5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold truncate">{session.subject.name}</p>
+                  <p className="font-semibold line-clamp-2 break-words">{session.subject.name}</p>
                   <p className="text-xs text-muted-foreground">{session.subject.subject_code}</p>
+                  
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1 shrink-0">
                 <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{session.batch.name} · {session.batch.adm_year}</span>
+                <span className="text-sm text-muted-foreground">{session.batch.name} </span>
               </div>
             </div>
             <div className="border-t pt-3 grid grid-cols-2 gap-2">

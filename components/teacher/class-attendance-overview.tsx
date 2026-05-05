@@ -78,14 +78,14 @@ export default function ClassAttendanceOverview({ attendance }: ClassAttendanceO
   };
 
   return (
-    <Card>
+    <Card className="h-auto lg:h-[560px]">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CalendarCheck className="w-5 h-5" />
           Class Attendance Overview
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 flex-1 min-h-0 overflow-y-auto">
         {/* Overall Gauge */}
         <div className="flex flex-col items-center">
           <AttendanceGauge 

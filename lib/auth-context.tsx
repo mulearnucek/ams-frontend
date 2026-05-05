@@ -5,6 +5,7 @@ import { authClient } from '@/lib/auth-client';
 import { useRouter, usePathname } from 'next/navigation';
 import { IncompleteProfileResponse, User } from "./types/UserTypes";
 import { getPublicConfig, type ConfigMap } from "./api/config";
+import Loading from '@/app/loading';
 
 type AuthContextType = {
   session: unknown;
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentSession = sessionRef.current;
 
     if (!currentSession) {
+      await refetchConfig();
       setUser(null);
       setIncompleteProfile(null);
       setIsLoading(false);
@@ -139,7 +141,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refetchConfig,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>
+      {isLoading ? <Loading/> : children}
+    </AuthContext.Provider>;
 }
 
 export function useAuth() {

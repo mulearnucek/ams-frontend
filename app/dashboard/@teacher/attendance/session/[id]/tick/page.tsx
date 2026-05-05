@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
 import { createBulkAttendanceRecords, updateAttendanceRecordById, type AttendanceStatus } from "@/lib/api/attendance-record";
 import { listUsers, type User } from "@/lib/api/user";
+import { toast } from "sonner";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -28,7 +29,9 @@ export default function TickAttendancePage() {
   const [history, setHistory] = useState<Array<{ studentId: string; previous?: AttendanceStatus }>>([]);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  
   const [existingRecords, setExistingRecords] = useState<Map<string, EmbeddedAttendanceRecord>>(new Map());
+  const [markMode, setMarkMode] = useState(false);
 
   const loadBatchStudents = useCallback(async (batchId: string) => {
     setLoadingStudents(true);
@@ -117,6 +120,11 @@ export default function TickAttendancePage() {
     setSaveSuccess(false);
   };
 
+  const beginMarking = () => {
+    setMarkMode(true);
+    setSaveSuccess(false);
+  };
+
   const submitAttendance = async () => {
     if (!session || students.length === 0) return;
 
@@ -172,14 +180,14 @@ export default function TickAttendancePage() {
       }
 
       setSaveSuccess(true);
-      const message =
-        errorCount > 0
-          ? `Saved ${createdCount + updatedCount} records (${createdCount} new, ${updatedCount} updated) with ${errorCount} errors`
-          : `Saved ${createdCount + updatedCount} records (${createdCount} new, ${updatedCount} updated)`;
-      alert(message);
+      if (errorCount > 0) {
+        toast.error("Failed to save attendance. Please try again.");
+      } else {
+        toast.success("Attendance marked successfully.");
+      }
     } catch (error) {
       console.error("Failed to save attendance:", error);
-      alert(error instanceof Error ? error.message : "Failed to save attendance");
+      toast.error(error instanceof Error ? error.message : "Failed to save attendance");
     } finally {
       setSaving(false);
     }
@@ -237,6 +245,8 @@ export default function TickAttendancePage() {
           <p className="text-muted-foreground">Mark students by ticking present or absent in a list</p>
         </div>
       </div>
+
+      {/* toasts are shown via Sonner Toaster mounted in dashboard layout */}
 
       <Card>
         <CardHeader>
@@ -312,6 +322,23 @@ export default function TickAttendancePage() {
           </div>
         </CardHeader>
         <CardContent>
+          <div className="mb-5 rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold">Marking mode</p>
+              </div>
+              {!markMode ? (
+                <Button onClick={beginMarking} disabled={students.length === 0} className="sm:min-w-40">
+                  Mark Attendance
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => setMarkMode(false)} disabled={saving} className="sm:min-w-40">
+                  Marking Enabled
+                </Button>
+              )}
+            </div>
+          </div>
+
           {loadingStudents ? (
             <div className="space-y-3">
               <Skeleton className="h-16 w-full" />
@@ -339,39 +366,45 @@ export default function TickAttendancePage() {
                       </div>
                       <p className="font-semibold">{student.name}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant={status === "absent" ? "destructive" : "outline"}
-                        onClick={() => markStudent(student._id!, "absent")}
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Absent
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={status === "present" ? "default" : "outline"}
-                        onClick={() => markStudent(student._id!, "present")}
-                      >
-                        <Check className="mr-2 h-4 w-4" />
-                        Present
-                      </Button>
-                    </div>
+                    {markMode && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant={status === "absent" ? "destructive" : "outline"}
+                          onClick={() => markStudent(student._id!, "absent")}
+                          className="h-10 px-3 sm:px-4"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          X
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={status === "present" ? "default" : "outline"}
+                          onClick={() => markStudent(student._id!, "present")}
+                          className="h-10 px-3 sm:px-4"
+                        >
+                          <Check className="mr-2 h-4 w-4" />
+                          ✓
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button variant="outline" onClick={undoLast} disabled={history.length === 0 || saving}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Undo Last
-            </Button>
-            <Button onClick={submitAttendance} disabled={saving || students.length === 0}>
-              {saving ? "Saving..." : "Save Attendance"}
-            </Button>
-          </div>
+          {markMode && (
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={undoLast} disabled={history.length === 0 || saving}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Undo Last
+              </Button>
+              <Button onClick={submitAttendance} disabled={saving || students.length === 0}>
+                {saving ? "Saving..." : "Submit Attendance"}
+              </Button>
+            </div>
+          )}
 
           {saveSuccess && (
             <div className="mt-4 rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">

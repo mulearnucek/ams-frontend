@@ -221,6 +221,7 @@ export function BatchManagement() {
                     <TableRow>
                       <TableHead>Batch Name</TableHead>
                       <TableHead>Year</TableHead>
+                      <TableHead>Semester</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Staff Advisor</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -231,6 +232,7 @@ export function BatchManagement() {
                       <TableRow key={batch._id}>
                         <TableCell className="font-medium">{batch.name}</TableCell>
                         <TableCell>{batch.adm_year}</TableCell>
+                        <TableCell>{batch.sem}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={getDepartmentBadgeColor(batch.department)}>
                             {batch.department}

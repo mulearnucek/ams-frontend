@@ -49,6 +49,7 @@ type PreviewRow = {
   department?: Department;
   staff_advisor: string;
   scheme?: string;
+  sem?: string;
   errors: string[];
   payload?: CreateBatchData;
 };
@@ -59,6 +60,7 @@ const TEMPLATE_HEADERS = [
   "Adm Year",
   "Department",
   "Scheme",
+  "Semester",
   "Staff Advisor Email",
 ] as const;
 
@@ -79,6 +81,8 @@ const CSV_HEADER_MAP: Record<string, string> = {
   "email": "staff_advisor_email",
   "advisor email": "staff_advisor_email",
   "scheme": "scheme",
+  "semester": "sem",
+  "sem": "sem",
 };
 
 function buildTemplateCsv(): string {
@@ -88,6 +92,7 @@ function buildTemplateCsv(): string {
     "Adm Year": "2024",
     "Department": "CSE",
     "Scheme": "2019",
+    "Semester": "1",
     "Staff Advisor Email": "teacher@example.com",
   };
 
@@ -212,6 +217,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
       const adm_year_raw = (r.adm_year || "").trim();
       const departmentRaw = (r.department || "").trim().toUpperCase();
       const scheme = (r.scheme || "").trim();
+      const sem = (r.sem || "1").trim();
       const staff_advisor_email = (r.staff_advisor_email || "").trim().toLowerCase();
 
       const errors: string[] = [];
@@ -222,6 +228,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
       if (!adm_year_raw) errors.push("Adm Year is required");
       if (!departmentRaw) errors.push("Department is required");
       if (!scheme) errors.push("Scheme is required");
+      if (!sem) errors.push("Semester is required");
       if (!staff_advisor_email) errors.push("Staff Advisor Email is required");
 
       let adm_year: number | undefined;
@@ -262,6 +269,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
           department,
           staff_advisor,
           scheme,
+          sem,
         };
       }
 
@@ -273,6 +281,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
         department,
         staff_advisor,
         scheme,
+        sem,
         errors,
         payload,
       };
@@ -549,6 +558,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
                       <TableHead>Name</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Scheme</TableHead>
+                      <TableHead>Semester</TableHead>
                       <TableHead>Adm Year</TableHead>
                       <TableHead>Errors</TableHead>
                     </TableRow>
@@ -561,6 +571,7 @@ export function BulkUploadBatchDialog({ open, onOpenChange, onSuccess }: BulkUpl
                         <TableCell>{r.name || "—"}</TableCell>
                         <TableCell>{r.department || "—"}</TableCell>
                         <TableCell>{r.scheme || "—"}</TableCell>
+                        <TableCell>{r.sem || "—"}</TableCell>
                         <TableCell>{r.adm_year || "—"}</TableCell>
                         <TableCell>
                           {r.errors.length ? (

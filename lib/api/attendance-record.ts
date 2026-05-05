@@ -130,6 +130,7 @@ export async function listAttendanceRecords(params?: ListRecordsParams): Promise
       'Content-Type': 'application/json',
     },
     credentials: 'include',
+    cache: 'no-store',
   });
 
   if (!response.ok) {

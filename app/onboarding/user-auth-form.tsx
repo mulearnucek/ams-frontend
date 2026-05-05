@@ -13,6 +13,9 @@ import { authClient } from '@/lib/auth-client';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import type { User } from '@/lib/types/UserTypes';
+import { FLAGS } from '@/lib/flags';
+import Image from 'next/image';
+
 
 const departments = [
   { value: 'CSE', label: 'CSE' },
@@ -260,7 +263,9 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const searchParams = useSearchParams();
-  const {user, incompleteProfile, isLoading : isPending, session, refetchUser} = useAuth();
+  const {user, incompleteProfile, isLoading : isPending, session, refetchUser, config} = useAuth();
+
+  const signupEnabled = config[FLAGS.SIGNUP] !== false;
 
   const ip = (incompleteProfile as any);
   const ipProfile = (ip?.profile ?? ip ?? {}) as any;
@@ -465,6 +470,45 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     );
   }
 
+  // Blocked state: signup disabled and batch not pre-assigned
+  if (user?.role === 'student' && !signupEnabled && !locked.batch) {
+    return (
+      <div className={cn("flex flex-col h-full min-h-[55vh]", className)} {...props}>
+
+        {/* Top: logo */}
+        <Image src="/logo-ucek.svg" alt="Logo" width={56} height={56} className="mr-2 h-10 w-auto lg:h-14 brightness-0 invert" />
+
+        {/* Middle: warning — grows to fill available space */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+          <div className="rounded-full bg-amber-100 dark:bg-amber-950/40 p-4">
+            <AlertCircle className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">Registration Unavailable</h2>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              Your account must be added to the system by an administrator before you can complete registration.
+              Please contact your institution.
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom: email + logout */}
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">Email</Label>
+              <p className="text-sm font-medium mt-1 truncate">{user?.email}</p>
+            </div>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={handleSignOut} title="Sign out">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </Card>
+
+      </div>
+    );
+  }
+
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col gap-3 text-center">
@@ -515,18 +559,17 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
         {/* Role-Specific Fields */}
         {user?.role === 'student' ? (
           <>
-            {/* Only show batch field if it wasn't pre-filled during bulk import */}
-            {!locked.batch && (
-              <FormField 
-                id="batch" 
-                label="Batch" 
-                placeholder="e.g., 2026-2030 or IT" 
-                value={formData.batch} 
-                error={errors.batch} 
-                disabled={locked.batch} 
-                onChange={handleInputEvent} 
-              />
-            )}
+            {/* Batch: disabled if pre-filled by admin, editable otherwise */}
+            <FormField
+              id="batch"
+              label="Batch"
+              placeholder="e.g., 2026-2030 or IT"
+              value={formData.batch}
+              error={errors.batch}
+              disabled={locked.batch}
+              onChange={handleInputEvent}
+            />
+
             <div className="grid grid-cols-2 gap-3">
               <FormField id="admissionNumber" label="Admission No." placeholder="29CSE555" value={formData.admissionNumber} error={errors.admissionNumber} disabled={locked.admissionNumber} onChange={handleInputEvent} />
               <FormField id="admissionYear" label="Admission Year" type="number" placeholder="2026" value={formData.admissionYear} error={errors.admissionYear} disabled={locked.admissionYear} onChange={handleInputEvent} />

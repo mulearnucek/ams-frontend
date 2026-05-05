@@ -207,7 +207,14 @@ export default function StudentAttendancePage() {
                       className="px-4 py-3 flex items-start justify-between gap-4 cursor-pointer"
                       role="button"
                       tabIndex={subject.subjectId ? 0 : -1}
-                      onClick={() => subject.subjectId && router.push(`/dashboard/attendance/report/${subject.subjectId}`)}
+                      onClick={() => {
+                        if (!subject.subjectId) return;
+                        const query = new URLSearchParams();
+                        if (subject.subjectName) query.set("subjectName", subject.subjectName);
+                        if (semester) query.set("semester", semester);
+                        const suffix = query.toString() ? `?${query.toString()}` : "";
+                        router.push(`/dashboard/attendance/report/${subject.subjectId}${suffix}`);
+                      }}
                       onKeyDown={(event) => {
                         if (!subject.subjectId) return;
                         if (event.key === "Enter" || event.key === " ") {
@@ -242,9 +249,12 @@ export default function StudentAttendancePage() {
                               disabled={!subject.subjectId}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                if (subject.subjectId) {
-                                  router.push(`/dashboard/attendance/report/${subject.subjectId}`);
-                                }
+                                if (!subject.subjectId) return;
+                                const query = new URLSearchParams();
+                                if (subject.subjectName) query.set("subjectName", subject.subjectName);
+                                if (semester) query.set("semester", semester);
+                                const suffix = query.toString() ? `?${query.toString()}` : "";
+                                router.push(`/dashboard/attendance/report/${subject.subjectId}${suffix}`);
                               }}
                             >
                               View Report

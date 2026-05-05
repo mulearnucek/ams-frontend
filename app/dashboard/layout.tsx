@@ -4,9 +4,11 @@ import Navbar from "@/components/appshell/navbar";
 import { useEffect, useMemo } from "react";
 import { BellRing, BookOpen, Home, Users, ClipboardCheck } from "lucide-react";
 import Dock from '@/components/appshell/Dock';
+import { Toaster } from '@/components/ui/sonner';
 import { useRouter, usePathname } from 'next/navigation';
 import { Avatar as AvatarIcon, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth-context";
+import { FLAGS } from "@/lib/flags";
 import Loading from "@/app/loading";
 import Avatar, { genConfig } from 'react-nice-avatar';
 
@@ -30,8 +32,9 @@ export default function DashboardLayout({
 }>) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isLoading, session, incompleteProfile } = useAuth();
+  const { user, isLoading, session, incompleteProfile, config } = useAuth();
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
+  const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
 
   const profileImageConfig: ReturnType<typeof genConfig> = useMemo(() => {
     const gender = user?.gender?.toLowerCase();
@@ -71,27 +74,30 @@ export default function DashboardLayout({
     }
 
     // Common items for all roles
-    baseItems.push(
-      { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
-      //{ icon: <Book size={18} />, label: 'Assignments', onClick: () => router.push('/dashboard/assignments') },
-    );
+    if (notificationsEnabled) {
+      baseItems.push(
+        { icon: <BellRing size={18} />, label: 'Notifications', onClick: () => router.push('/dashboard/notifications') },
+      );
+    }
+
+    //{ icon: <Book size={18} />, label: 'Assignments', onClick: () => router.push('/dashboard/assignments') },
 
     // Profile item (always last)
     baseItems.push({
       icon: (
         user?.image != undefined && user?.image != "" && user?.image != "gen" ?
-        <AvatarIcon className="h-6 w-6 sm:h-8 sm:w-8">
-          <AvatarImage src={user?.image || ''} alt={user?.name || 'User'} />
-          <AvatarFallback className="text-[8px]">{user?.name?.[0] || 'U'}</AvatarFallback>
-        </AvatarIcon> :
-        <Avatar {...profileImageConfig} className="h-6 w-6 sm:h-8 sm:w-8" />
-      ), 
-      label: 'Profile', 
+          <AvatarIcon className="h-6 w-6 sm:h-8 sm:w-8">
+            <AvatarImage src={user?.image || ''} alt={user?.name || 'User'} />
+            <AvatarFallback className="text-[8px]">{user?.name?.[0] || 'U'}</AvatarFallback>
+          </AvatarIcon> :
+          <Avatar {...profileImageConfig} className="h-6 w-6 sm:h-8 sm:w-8" />
+      ),
+      label: 'Profile',
       onClick: () => router.push('/dashboard/profile')
     });
 
     return baseItems;
-  }, [router, user, profileImageConfig]);
+  }, [notificationsEnabled, router, user, profileImageConfig]);
 
   useEffect(() => {
     // Still loading, don't do anything yet
@@ -110,6 +116,13 @@ export default function DashboardLayout({
     }
   }, [isLoading, session, user, incompleteProfile, router]);
 
+  useEffect(() => {
+    if (isLoading) return;
+    if (!notificationsEnabled && pathname.startsWith('/dashboard/notifications')) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, notificationsEnabled, pathname, router]);
+
   if (isLoading) {
     return <Loading />;
   }
@@ -121,7 +134,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen w-full" suppressHydrationWarning>
-      <Dock 
+      <Dock
         items={dockItems}
         panelHeight={68}
         baseItemSize={50}
@@ -130,13 +143,18 @@ export default function DashboardLayout({
       />
       <main className="flex-1 flex flex-col overflow-hidden">
         <Navbar />
+        <Toaster richColors
+          position="top-center"
+          toastOptions={{
+            className: "!w-fit !max-w-sm mx-auto"
+          }} />
         <div className="flex-1 overflow-auto sm:pb-20">
           {isSharedRoute && children}
 
           {!isSharedRoute && user.role === "student" && student}
           {!isSharedRoute && user.role === "admin" && admin}
           {!isSharedRoute && (user.role === "teacher" || user.role === "hod") && teacher}
-          
+
           {!isSharedRoute && !["student", "admin", "teacher", "hod"].includes(user.role) && (
             <div className="flex flex-1 items-center justify-center">
               <p>Your role &quot;{user.role}&quot; does not have a dashboard implemented yet.</p>
