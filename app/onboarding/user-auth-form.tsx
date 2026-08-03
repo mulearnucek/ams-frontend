@@ -220,10 +220,10 @@ const shouldLogOnboardingDebug = (): boolean => {
   return window.localStorage.getItem("ams_debug_onboarding") === "1";
 };
 
-  const FormField = ({ id, label, type = 'text', placeholder, value, error, disabled, onChange }: { id: keyof FormData; label: string; type?: string; placeholder?: string; value: string; error?: string; disabled?: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; }) => (
+  const FormField = ({ id, label, type = 'text', placeholder, value, displayValue, error, disabled, onChange }: { id: keyof FormData; label: string; type?: string; placeholder?: string; value: string; displayValue?: string; error?: string; disabled?: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; }) => (
     <div className={`space-y-2 ${disabled ? 'cursor-not-allowed' : ''}`}>
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} type={type} placeholder={placeholder} value={value}
+      <Input id={id} type={type} placeholder={placeholder} value={displayValue ?? value}
         onChange={onChange} name={id} disabled={disabled} className={cn(
           disabled ? 'bg-blue-50 dark:bg-blue-950/20 opacity-75 pointer-events-none' : '',
           error ? 'border-red-500 focus-visible:ring-red-500' : ''
@@ -262,6 +262,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     designation: '', dateOfJoining: '',
     relation: '',
   });
+  const [batchName, setBatchName] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState<1 | 2>(1);
   const router = useRouter();
@@ -311,6 +312,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     const inferredLastName = user.last_name || fullName.split(' ').slice(1).join(' ') || '';
 
     const batchId = typeof p.batch === 'string' ? p.batch : p.batch?._id;
+    setBatchName((typeof p.batch === 'object' && p.batch?.name) || '');
 
     const linkedChild = role === 'parent' ? p.child : undefined;
     const linkedChildProfile = (typeof linkedChild === 'object' && linkedChild !== null) ? (linkedChild.profile ?? {}) : {};
@@ -661,6 +663,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
                   label="Batch"
                   placeholder="e.g., 2026-2030 or IT"
                   value={formData.batch}
+                  displayValue={locked.batch ? (batchName || formData.batch) : undefined}
                   error={errors.batch}
                   disabled={locked.batch}
                   onChange={handleInputEvent}

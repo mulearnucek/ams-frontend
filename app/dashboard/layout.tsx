@@ -40,11 +40,10 @@ export default function DashboardLayout({
   const { user, isLoading, session, incompleteProfile, config } = useAuth();
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
   const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
-  // Runs once per layout mount, not on every route change within /dashboard -
-  // otherwise navigating from /dashboard to /dashboard/profile after already
-  // skipping today would re-run the check against a still-fresh pathname.
   const pwaCheckRef = useRef(false);
   const [pwaCheckDone, setPwaCheckDone] = useState(false);
+  const calendarEnabled = config[FLAGS.CALENDAR] !== false;
+  const assignmentsEnabled = config[FLAGS.ASSIGNMENTS] !== false;
 
   const profileImageConfig = useMemo(() => {
     const gender = user?.gender?.toLowerCase();
@@ -98,9 +97,11 @@ export default function DashboardLayout({
     );
 
     // Calendar — shared by all roles
-    baseItems.push(
-      { icon: <CalendarDays size={18} />, label: 'Calendar', onClick: () => router.push('/dashboard/calendar') },
-    );
+    if (calendarEnabled) {
+      baseItems.push(
+        { icon: <CalendarDays size={18} />, label: 'Calendar', onClick: () => router.push('/dashboard/calendar') },
+      );
+    }
 
     // Common items for all roles
     if (notificationsEnabled) {
@@ -124,7 +125,7 @@ export default function DashboardLayout({
     });
 
     return baseItems;
-  }, [notificationsEnabled, router, user, profileImageConfig]);
+  }, [notificationsEnabled, calendarEnabled, router, user, profileImageConfig]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -153,7 +154,13 @@ export default function DashboardLayout({
     if (!notificationsEnabled && pathname.startsWith('/dashboard/notifications')) {
       router.replace('/dashboard');
     }
-  }, [isLoading, notificationsEnabled, pathname, router]);
+    if (!calendarEnabled && pathname.startsWith('/dashboard/calendar')) {
+      router.replace('/dashboard');
+    }
+    if (!assignmentsEnabled && pathname.startsWith('/dashboard/assignments')) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, notificationsEnabled, calendarEnabled, assignmentsEnabled, pathname, router]);
 
   if (isLoading) {
     return <Loading />;

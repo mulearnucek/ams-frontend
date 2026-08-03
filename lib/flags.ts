@@ -16,6 +16,10 @@
 export const FLAGS = {
   /** Controls all notification-related UI surfaces. */
   NOTIFICATIONS: "feature/notifications",
+  /** Controls the shared activity calendar (dock item + /dashboard/calendar route). */
+  CALENDAR: "feature/calendar",
+  /** Controls the assignments list (/dashboard/assignments route). */
+  ASSIGNMENTS: "feature/assignments",
 
   // ── Auth ────────────────────────────────────────────────────────────────────
 
