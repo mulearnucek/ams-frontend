@@ -120,7 +120,7 @@ export interface UpdateUserData {
   /** Role-specific data sent as a flat profile object */
   profile?: Partial<
     StudentProfile &
-      StaffProfile & { relation?: ParentRelation; childID?: string }
+      StaffProfile & { relation?: ParentRelation; child_candidate_code?: string }
   >;
 }
 
@@ -141,6 +141,14 @@ export interface BulkCreateUserData {
   department?: Department;
   date_of_birth?: string;
   batch?: string;
+
+  // Staff flat fields (teacher/hod/principal/staff/admin)
+  designation?: string;
+  date_of_joining?: string;
+
+  // Parent flat fields
+  relation?: ParentRelation;
+  child_candidate_code?: string;
 }
 
 export interface BulkCreateUsersSuccess {

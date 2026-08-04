@@ -65,6 +65,7 @@ export function SignInUserAuthForm({ className, redirectUrl, emailSigninEnabled,
       const { error } = await authClient.signIn.social({
         provider: "google",
         callbackURL: window.location.origin + (redirectUrl || "/dashboard"),
+        errorCallbackURL: window.location.origin + "/signin",
       })
       if (error) {
         setError(error.message || "An error occurred during Google sign in")

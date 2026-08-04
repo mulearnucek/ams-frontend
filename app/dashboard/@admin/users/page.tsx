@@ -40,7 +40,7 @@ import {
 import { UserDialog } from "./user-dialog";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { AddUserDialog } from "./add-user-dialog";
-import { BulkUploadDialog, TEMPLATE_HEADERS, downloadTextFile } from "./bulk-upload-dialog";
+import { BulkUploadDialog, templateHeadersForRole, downloadTextFile } from "./bulk-upload-dialog";
 
 const DEFAULT_ITEMS_PER_PAGE = 10;
 
@@ -213,9 +213,11 @@ export default function UsersPage() {
     return allExportUsers;
   }, [selectedTab, activeSearch, selectedBatchId]);
 
-  // Export uses the same template as bulk-upload, minus "Generate Mails"
-  // (existing users don't need a mail-generation instruction).
-  const EXPORT_HEADERS = TEMPLATE_HEADERS.filter((h) => h !== "Generate Mails");
+  // Export uses the same per-role template as bulk-upload, minus "Generate Mails"
+  // (existing users don't need a mail-generation instruction). All roles under the
+  // "staff" tab share one column set, so the tab's first role is representative.
+  const exportRole = ROLE_TABS.find((tab) => tab.value === selectedTab)?.roles[0] ?? "student";
+  const EXPORT_HEADERS = templateHeadersForRole(exportRole).filter((h) => h !== "Generate Mails");
 
   const formatDateOnly = (value?: string): string => {
     if (!value) return "";
@@ -227,26 +229,34 @@ export default function UsersPage() {
 
   const buildExportRow = (user: User): string[] => {
     const p = (user.profile ?? {}) as any;
-    const batch = p.batch;
-    const batchValue = batch
-      ? typeof batch === "string"
-        ? batchIdById.get(batch) ?? ""
-        : batch.id || batchIdById.get(batch._id) || ""
-      : "";
+    const common = [user.first_name ?? "", user.last_name ?? "", user.role, user.email ?? "", ""];
 
-    return [
-      user.first_name ?? "",
-      user.last_name ?? "",
-      user.role,
-      user.email ?? "",
-      "",
-      p.adm_number ?? "",
-      p.adm_year != null ? String(p.adm_year) : "",
-      p.candidate_code ?? "",
-      p.department ?? "",
-      formatDateOnly(p.date_of_birth),
-      batchValue,
-    ];
+    if (user.role === "student") {
+      const batch = p.batch;
+      const batchValue = batch
+        ? typeof batch === "string"
+          ? batchIdById.get(batch) ?? ""
+          : batch.id || batchIdById.get(batch._id) || ""
+        : "";
+
+      return [
+        ...common,
+        p.adm_number ?? "",
+        p.adm_year != null ? String(p.adm_year) : "",
+        p.candidate_code ?? "",
+        p.department ?? "",
+        formatDateOnly(p.date_of_birth),
+        batchValue,
+      ];
+    }
+
+    if (user.role === "parent") {
+      const childCandidateCode = typeof p.child === "object" ? p.child?.profile?.candidate_code ?? "" : "";
+      return [...common, p.relation ?? "", childCandidateCode];
+    }
+
+    // Staff-shaped roles (teacher/hod/principal/staff/admin)
+    return [...common, p.designation ?? "", p.department ?? "", formatDateOnly(p.date_of_joining)];
   };
 
   const handleExportCsv = async () => {

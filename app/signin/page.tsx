@@ -5,11 +5,21 @@ import { SignInUserAuthForm } from "./user-auth-form"
 import Logo from "@/components/logo"
 import { useSearchParams } from "next/navigation"
 import { AlertCircle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { FLAGS } from "@/lib/flags"
 import { useAuth } from "@/lib/auth-context"
 
+const GOOGLE_SIGNIN_ERROR_MESSAGES: Record<string, string> = {
+  account_not_linked: "This Google account isn't linked to any existing user. Contact your administrator to have your account set up first.",
+  signup_disabled: "No account was found for this Google login. Accounts must be created by an administrator before you can sign in.",
+  please_restart_the_process: "Something went wrong during sign in. Please try again.",
+  state_mismatch: "Your sign-in session expired. Please try again.",
+}
+
 export default function AuthenticationPage() {
-  const redirectURL = useSearchParams().get("r") || ""
+  const searchParams = useSearchParams()
+  const redirectURL = searchParams.get("r") || ""
+  const googleError = searchParams.get("error")
   const { config } = useAuth()
 
   const emailSigninEnabled = config[FLAGS.EMAIL_SIGNIN] !== false
@@ -48,6 +58,15 @@ export default function AuthenticationPage() {
                     Sign in with your account to continue.
                   </p>
                 </div>
+                {googleError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Sign in failed</AlertTitle>
+                    <AlertDescription>
+                      {GOOGLE_SIGNIN_ERROR_MESSAGES[googleError] || "An error occurred during Google sign in. Please try again."}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <SignInUserAuthForm redirectUrl={redirectURL} emailSigninEnabled={emailSigninEnabled} googleSigninEnabled={googleSigninEnabled} />
                 <p className="px-6 text-center text-xs text-muted-foreground">
                   By clicking continue, you agree to our{" "}

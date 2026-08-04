@@ -38,6 +38,8 @@ import {
 import { format, isValid, parse, parseISO } from "date-fns";
 import { Loader2, Upload, Download, AlertCircle, CheckCircle2 } from "lucide-react";
 
+const REQUIRED_EMAIL_DOMAIN = process.env.NEXT_PUBLIC_EMAIL_DOMAIN;
+
 type BulkUploadDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -68,13 +70,16 @@ type PreviewRow = {
   payload?: BulkCreateUserData;
 };
 
-export const TEMPLATE_HEADERS = [
+const COMMON_HEADERS = [
   "First Name",
   "Last Name",
   "Role",
   "Generate Mails",
   "Email",
   "Password",
+] as const;
+
+const STUDENT_ONLY_HEADERS = [
   "Adm Number",
   "Adm Year",
   "Candidate Code",
@@ -83,7 +88,32 @@ export const TEMPLATE_HEADERS = [
   "Batch",
 ] as const;
 
-export type TemplateHeader = (typeof TEMPLATE_HEADERS)[number];
+const STAFF_ONLY_HEADERS = [
+  "Designation",
+  "Department",
+  "Date of Joining",
+] as const;
+
+const PARENT_ONLY_HEADERS = [
+  "Relation",
+  "Child Candidate Code",
+] as const;
+
+const STAFF_ROLES: readonly UserRole[] = ["teacher", "hod", "principal", "staff", "admin"];
+
+/** Column set differs per role — each role only sees the fields it actually needs. */
+export function templateHeadersForRole(role: UserRole): readonly string[] {
+  if (role === "student") return [...COMMON_HEADERS, ...STUDENT_ONLY_HEADERS];
+  if (role === "parent") return [...COMMON_HEADERS, ...PARENT_ONLY_HEADERS];
+  if (STAFF_ROLES.includes(role)) return [...COMMON_HEADERS, ...STAFF_ONLY_HEADERS];
+  return [...COMMON_HEADERS];
+}
+
+export type TemplateHeader =
+  | (typeof COMMON_HEADERS)[number]
+  | (typeof STUDENT_ONLY_HEADERS)[number]
+  | (typeof STAFF_ONLY_HEADERS)[number]
+  | (typeof PARENT_ONLY_HEADERS)[number];
 
 const ROLES: Array<{ value: UserRole; label: string }> = [
   { value: "student", label: "Student" },
@@ -156,6 +186,16 @@ const CSV_HEADER_MAP: Record<string, string> = {
   date_of_birth: "date_of_birth",
 
   batch: "batch",
+
+  designation: "designation",
+
+  "date of joining": "date_of_joining",
+  date_of_joining: "date_of_joining",
+
+  relation: "relation",
+
+  "child candidate code": "child_candidate_code",
+  child_candidate_code: "child_candidate_code",
 };
 
 function parseGenerateMail(value: string | undefined): boolean {
@@ -193,17 +233,22 @@ function buildTemplateCsv(role: UserRole): string {
     "Generate Mails": "false",
     Email: "john.doe@example.com",
     Password: "",
-    "Adm Number": role === "student" ? "ADM2024001" : "",
-    "Adm Year": role === "student" ? "2024" : "",
-    "Candidate Code": role === "student" ? "CAND001" : "",
-    Department: role === "student" ? "CSE" : "",
-    "Date of Birth": role === "student" ? "2005-01-15" : "",
-    Batch: role === "student" ? "BATCH_ID_OR_CODE" : "",
+    "Adm Number": "ADM2024001",
+    "Adm Year": "2024",
+    "Candidate Code": "41523404054",
+    Department: "CSE",
+    "Date of Birth": "2005-01-15",
+    Batch: "BATCH_ID_OR_CODE",
+    Designation: "Assistant Professor",
+    "Date of Joining": "2020-06-01",
+    Relation: "mother",
+    "Child Candidate Code": "41523404054",
   };
 
+  const headers = templateHeadersForRole(role);
   const csv = Papa.unparse({
-    fields: [...TEMPLATE_HEADERS],
-    data: [[...TEMPLATE_HEADERS].map((h) => exampleRow[h] ?? "")],
+    fields: [...headers],
+    data: [headers.map((h) => exampleRow[h as TemplateHeader] ?? "")],
   });
 
   return csv + "\n";
@@ -232,11 +277,10 @@ function downloadBlob(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
-function buildCredentialsPdf(credentials: BulkCreateUsersCredential[]): Blob {
+function buildCredentialsPdf(credentials: BulkCreateUsersCredential[], title: string): Blob {
   const doc = new jsPDF();
   doc.setFontSize(14);
-  doc.text("Student Mails - University College of Engineering, Kariavattom", 14, 16);
-  doc.text(`Generated on: ${format(new Date(), "yyyy-MM-dd HH:mm:ss")}`, 14, 22);
+  doc.text(title, 14, 16);
   doc.setFontSize(12);
   autoTable(doc, {
     startY: 22,
@@ -253,7 +297,39 @@ function buildCredentialsPdf(credentials: BulkCreateUsersCredential[]): Blob {
   return doc.output("blob");
 }
 
-/** Bundles success.csv, failed.csv, and (if any) credentials.pdf into one zip and downloads it. */
+/**
+ * Groups credentials by (department, admission year) — each group becomes
+ * its own PDF in the zip (e.g. "IT (2024 Batch).pdf") rather than one
+ * combined table, since these correspond to distinct batches.
+ */
+function groupCredentialsByDeptAndYear(
+  credentials: BulkCreateUsersCredential[]
+): Array<{ department: string; admYear: string; credentials: BulkCreateUsersCredential[] }> {
+  const groups = new Map<string, { department: string; admYear: string; credentials: BulkCreateUsersCredential[] }>();
+
+  for (const c of credentials) {
+    const department = c.department?.trim() || "Unassigned";
+    const admYear = c.adm_year != null ? String(c.adm_year) : "Unknown";
+    const key = `${department} ${admYear}`;
+
+    const existing = groups.get(key);
+    if (existing) {
+      existing.credentials.push(c);
+    } else {
+      groups.set(key, { department, admYear, credentials: [c] });
+    }
+  }
+
+  return [...groups.values()].sort((a, b) => a.department.localeCompare(b.department) || a.admYear.localeCompare(b.admYear));
+}
+
+/** Filesystem-safe file name, e.g. "IT (2024 Batch).pdf" or "CSE (Unassigned Batch).pdf". */
+function credentialsFileName(department: string, admYear: string): string {
+  const label = admYear === "Unknown" ? `${department} (Unassigned Batch)` : `${department} (${admYear} Batch)`;
+  return `${label.replace(/[\\/:*?"<>|]/g, "")}.pdf`;
+}
+
+/** Bundles success.csv, failed.csv, and (if any) per-batch credential PDFs into one zip and downloads it. */
 async function downloadReportsZip(result: BulkResult) {
   const zip = new JSZip();
 
@@ -270,7 +346,14 @@ async function downloadReportsZip(result: BulkResult) {
   zip.file("failed.csv", failedCsv);
 
   if (result.credentials.length > 0) {
-    zip.file("credentials.pdf", buildCredentialsPdf(result.credentials));
+    const groups = groupCredentialsByDeptAndYear(result.credentials);
+    for (const group of groups) {
+      const title =
+        group.admYear === "Unknown"
+          ? `Student Mails - ${group.department} - University College of Engineering, Kariavattom`
+          : `Student Mails - ${group.department} (${group.admYear} Batch) - University College of Engineering, Kariavattom`;
+      zip.file(credentialsFileName(group.department, group.admYear), buildCredentialsPdf(group.credentials, title));
+    }
   }
 
   const blob = await zip.generateAsync({ type: "blob" });
@@ -353,6 +436,18 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
       const date_of_birth = dobRaw ? toIsoDate(dobRaw) : undefined;
       const batch = (r.batch || "").trim();
 
+      const designation = (r.designation || "").trim();
+      const date_of_joining_raw = (r.date_of_joining || "").trim();
+      const date_of_joining = date_of_joining_raw ? toIsoDate(date_of_joining_raw) : undefined;
+
+      const relationRaw = (r.relation || "").trim().toLowerCase();
+      const relation = relationRaw === "mother" || relationRaw === "father" || relationRaw === "guardian" ? relationRaw : undefined;
+      const child_candidate_code = (r.child_candidate_code || "").trim();
+
+      const isStaffRole = STAFF_ROLES.includes(enforcedRole);
+      const isParentRole = enforcedRole === "parent";
+      const isStudentRole = enforcedRole === "student";
+
       const errors: string[] = [];
       if (!first_name) errors.push("First Name is required");
       if (!last_name) errors.push("Last Name is required");
@@ -363,10 +458,8 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
 
       if (!generate_mail) {
         if (!emailRaw) errors.push("Email is required when Generate Mails is false");
-      } else {
-        if (!candidate_code) errors.push("Candidate Code is required when Generate Mails is true");
-        if (!adm_year_raw) errors.push("Adm Year is required when Generate Mails is true");
-        if (!departmentRaw) errors.push("Department is required when Generate Mails is true");
+      } else if (emailRaw && REQUIRED_EMAIL_DOMAIN && !emailRaw.toLowerCase().endsWith(`@${REQUIRED_EMAIL_DOMAIN.toLowerCase()}`)) {
+        errors.push(`Email must end with @${REQUIRED_EMAIL_DOMAIN} when Generate Mails is true`);
       }
 
       let adm_year: number | undefined;
@@ -387,6 +480,14 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
         errors.push("Date of Birth must be a valid date (YYYY-MM-DD preferred)");
       }
 
+      if (date_of_joining_raw && !date_of_joining) {
+        errors.push("Date of Joining must be a valid date (YYYY-MM-DD preferred)");
+      }
+
+      if (relationRaw && !relation) {
+        errors.push("Relation must be one of: mother, father, guardian");
+      }
+
         let payload: BulkCreateUserData | undefined = undefined;
         if (!errors.length && role) {
           const base: Record<string, unknown> = {
@@ -395,15 +496,25 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
             role,
             generate_mail,
           };
-          
+
           if (!generate_mail && emailRaw) base.email = emailRaw;
           if (password) base.password = password;
-          if (adm_number) base.adm_number = adm_number;
-          if (adm_year !== undefined) base.adm_year = adm_year;
-          if (candidate_code) base.candidate_code = candidate_code;
-          if (department) base.department = department;
-          if (date_of_birth) base.date_of_birth = date_of_birth;
-          if (batch) base.batch = batch;
+
+          if (isStudentRole) {
+            if (adm_number) base.adm_number = adm_number;
+            if (adm_year !== undefined) base.adm_year = adm_year;
+            if (candidate_code) base.candidate_code = candidate_code;
+            if (department) base.department = department;
+            if (date_of_birth) base.date_of_birth = date_of_birth;
+            if (batch) base.batch = batch;
+          } else if (isStaffRole) {
+            if (designation) base.designation = designation;
+            if (department) base.department = department;
+            if (date_of_joining) base.date_of_joining = date_of_joining;
+          } else if (isParentRole) {
+            if (relation) base.relation = relation;
+            if (child_candidate_code) base.child_candidate_code = child_candidate_code;
+          }
 
           // Merge any additional columns from the CSV that aren't mapped
           // and ensure no empty strings, nulls or undefined values are sent.
@@ -413,7 +524,7 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
                base[key] = value;
             }
           }
-          
+
           // Clean all empty/null values from base
           for (const key in base) {
              if (base[key] === "" || base[key] === null || base[key] === undefined) {
@@ -571,6 +682,9 @@ export function BulkUploadDialog({ open, onOpenChange, onSuccess }: BulkUploadDi
           <DialogTitle>Bulk Import Users (CSV)</DialogTitle>
           <DialogDescription>
             Upload a CSV to create multiple users. One upload can only contain a single role.
+            {REQUIRED_EMAIL_DOMAIN
+              ? ` When Generate Mails is true, the account email must end with @${REQUIRED_EMAIL_DOMAIN}.`
+              : ""}
           </DialogDescription>
         </DialogHeader>
 

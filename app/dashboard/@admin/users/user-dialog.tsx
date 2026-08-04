@@ -42,7 +42,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Check, Copy, KeyRound, Loader2, LogOut, Pencil, ShieldAlert, ShieldCheck, X } from "lucide-react";
+import { Check, ChevronRight, Copy, KeyRound, Loader2, LogOut, Pencil, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -70,7 +70,7 @@ const userFormSchema = z.object({
 
   // Parent profile fields
   relation: z.enum(["mother", "father", "guardian"] as const).optional(),
-  childID:  z.string().optional(),
+  child_candidate_code: z.string().optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
@@ -99,6 +99,7 @@ export function UserDialog({
   const [banDialogOpen, setBanDialogOpen] = useState(false);
   const [isUnbanning, setIsUnbanning] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [childDialogOpen, setChildDialogOpen] = useState(false);
 
   useEffect(() => {
     setIsEditing(initialMode === "edit");
@@ -144,7 +145,7 @@ export function UserDialog({
       designation:    "",
       date_of_joining:"",
       relation:       undefined,
-      childID:        "",
+      child_candidate_code: "",
     },
   });
 
@@ -175,7 +176,7 @@ export function UserDialog({
 
         // Parent fields (from profile)
         relation: p.relation,
-        childID:  p.child?._id ?? "",
+        child_candidate_code: p.child?.profile?.candidate_code ?? "",
       });
     }
   }, [user, open, isEditing, form]);
@@ -209,7 +210,7 @@ export function UserDialog({
         profile.date_of_joining = data.date_of_joining || undefined;
       } else if (role === "parent") {
         profile.relation = data.relation;
-        profile.childID  = data.childID;
+        profile.child_candidate_code = data.child_candidate_code;
       }
 
       if (Object.keys(profile).length > 0) {
@@ -253,8 +254,20 @@ export function UserDialog({
   const hasBasicProfile   = Boolean(user.first_name && user.last_name);
   const hasStudentProfile = !isStudent ? true : Boolean(p.batch && p.adm_number && p.adm_year && p.department && p.date_of_birth);
   const hasStaffProfile   = !isStaff   ? true : Boolean(p.designation && p.department && p.date_of_joining);
-  const hasParentProfile  = !isParent  ? true : Boolean(p.relation && p.child?._id);
+  const hasParentProfile  = !isParent  ? true : Boolean(p.relation && p.child);
   const isProfileIncomplete = !(hasBasicProfile && hasStudentProfile && hasStaffProfile && hasParentProfile);
+
+  const childAsUser: User | null = p.child
+    ? {
+        _id: p.child._id,
+        name: `${p.child.first_name ?? ""} ${p.child.last_name ?? ""}`.trim(),
+        email: p.child.email ?? "",
+        role: p.child.role ?? "student",
+        first_name: p.child.first_name,
+        last_name: p.child.last_name,
+        profile: p.child.profile ?? {},
+      }
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -682,12 +695,12 @@ export function UserDialog({
                           />
                           <FormField
                             control={form.control}
-                            name="childID"
+                            name="child_candidate_code"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Child User ID</FormLabel>
+                                <FormLabel>Child Candidate Code</FormLabel>
                                 <FormControl>
-                                  <Input {...field} placeholder="Enter child user _id" />
+                                  <Input {...field} placeholder="e.g. CAND001" />
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -695,20 +708,32 @@ export function UserDialog({
                           />
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                          <InfoItem label="Relation"   value={p.relation} />
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                            <InfoItem label="Relation" value={p.relation} />
+                          </div>
                           {p.child && (
-                            <>
-                              <InfoItem
-                                label="Child Name"
-                                value={
-                                  p.child?.first_name
-                                    ? `${p.child.first_name} ${p.child.last_name}`
-                                    : undefined
-                                }
-                              />
-                              <InfoItem label="Child Email" value={p.child?.email} />
-                            </>
+                            <button
+                              type="button"
+                              onClick={() => setChildDialogOpen(true)}
+                              className="w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50 active:bg-muted"
+                            >
+                              <Avatar className="h-10 w-10 shrink-0">
+                                <AvatarFallback>
+                                  {getInitials(`${p.child.first_name ?? ""} ${p.child.last_name ?? ""}`.trim() || "?")}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium truncate">
+                                  {p.child.first_name} {p.child.last_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {p.child.profile?.candidate_code ?? "No candidate code"}
+                                  {p.child.profile?.department ? ` · ${p.child.profile.department}` : ""}
+                                </p>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                            </button>
                           )}
                         </div>
                       )
@@ -758,6 +783,15 @@ export function UserDialog({
         onOpenChange={setBanDialogOpen}
         onSuccess={onSuccess}
       />
+
+      {childAsUser && (
+        <UserDialog
+          user={childAsUser}
+          open={childDialogOpen}
+          onOpenChange={setChildDialogOpen}
+          initialMode="view"
+        />
+      )}
     </Dialog>
   );
 }

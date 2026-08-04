@@ -36,6 +36,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const REQUIRED_EMAIL_DOMAIN = process.env.NEXT_PUBLIC_EMAIL_DOMAIN;
+
 // Form schema — first_name + last_name instead of a single name field
 const createUserFormSchema = z
   .object({
@@ -70,7 +72,7 @@ const createUserFormSchema = z
       });
     }
 
-    if (val.generate_mail) {
+    if (val.generate_mail && val.role === "student") {
       if (!val.candidate_code) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
@@ -92,6 +94,14 @@ const createUserFormSchema = z
           path: ["department"],
         });
       }
+    }
+
+    if (val.generate_mail && val.email && REQUIRED_EMAIL_DOMAIN && !val.email.toLowerCase().endsWith(`@${REQUIRED_EMAIL_DOMAIN.toLowerCase()}`)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Email must end with @${REQUIRED_EMAIL_DOMAIN} when Generate Mail is enabled`,
+        path: ["email"],
+      });
     }
   });
 
@@ -148,12 +158,6 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
     };
     loadBatches();
   }, [open, selectedRole]);
-
-  useEffect(() => {
-    if (selectedRole !== "student") {
-      form.setValue("generate_mail", false);
-    }
-  }, [selectedRole, form]);
 
   const batchOptions = useMemo(
     () => batches.map((b) => ({ value: b._id, label: `${b.name} (${b.adm_year})` })),
@@ -305,24 +309,24 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
                   )}
                 />
 
-                {/* Generate Mail (student only) */}
-                {selectedRole === "student" && (
-                  <FormField
-                    control={form.control}
-                    name="generate_mail"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
-                        <FormControl>
-                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        </FormControl>
-                        <FormLabel className="mt-0!">
-                          Generate Mail (requires Candidate Code, Adm Year, Department)
-                        </FormLabel>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
+                {/* Generate Mail */}
+                <FormField
+                  control={form.control}
+                  name="generate_mail"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center gap-2 space-y-0 self-end pb-2">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <FormLabel className="mt-0!">
+                        Generate Mail
+                        {selectedRole === "student" ? " (requires Candidate Code, Adm Year, Department)" : ""}
+                        {REQUIRED_EMAIL_DOMAIN ? ` — must be @${REQUIRED_EMAIL_DOMAIN} if a manual email is given` : ""}
+                      </FormLabel>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 {/* Role */}
                 <FormField
