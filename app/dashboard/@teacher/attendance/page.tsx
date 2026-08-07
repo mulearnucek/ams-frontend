@@ -372,7 +372,7 @@ export default function AttendancePage() {
                       <Badge variant="outline" className="shrink-0">S{selectedGroup.subjectSem}</Badge>
                       {selectedGroup.archived && (
                         <Badge variant="secondary" className="gap-1 shrink-0">
-                          <Archive className="h-3 w-3" /> Past semester — read-only
+                          <Archive className="h-3 w-3" />Read-only
                         </Badge>
                       )}
                     </div>

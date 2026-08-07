@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 type GreetingHeaderProps = {
   userName: string;
 };
 
 const getGreeting = () => {
-  const hour = new Date().getHours();
+  const hour = new Date().getHours() +15;
   
   if (hour >= 5 && hour < 12) {
     return {
@@ -19,7 +20,9 @@ const getGreeting = () => {
       cloudColor: "text-white dark:text-white/30",
       cloudOpacity: 0.9,
       isNight: false,
-      celestial: "sun" as const
+      celestial: "sun" as const,
+      buildingFilter: "brightness(0.95) saturate(1.2) sepia(0.15)",
+      buildingFilterDark: "brightness(0.50) saturate(0.8) sepia(0.4) ",
     };
   } else if (hour >= 12 && hour < 16) {
     return {
@@ -30,7 +33,9 @@ const getGreeting = () => {
       cloudColor: "text-white dark:text-white/30",
       cloudOpacity: 0.8,
       isNight: false,
-      celestial: "sun" as const
+      celestial: "sun" as const,
+      buildingFilter: "brightness(0.85) saturate(1.1) sepia(0.15) hue-rotate(10deg)",
+      buildingFilterDark: "brightness(0.60) saturate(0.8) sepia(0.4)",
     };
   } else if (hour >= 16 && hour < 19) {
     return {
@@ -41,7 +46,9 @@ const getGreeting = () => {
       cloudColor: "text-pink-100 dark:text-pink-200/20",
       cloudOpacity: 0.6,
       isNight: false,
-      celestial: "sun" as const
+      celestial: "sun" as const,
+      buildingFilter: "brightness(0.7) saturate(1.4) sepia(0.3) hue-rotate(-10deg)",
+      buildingFilterDark: "brightness(0.45) saturate(1.1) sepia(0.5) hue-rotate(280deg)",
     };
   } else if (hour >= 19 && hour < 24) {
     return {
@@ -52,7 +59,9 @@ const getGreeting = () => {
       cloudColor: "text-slate-600 dark:text-slate-600",
       cloudOpacity: 0.2,
       isNight: true,
-      celestial: "moon" as const
+      celestial: "moon" as const,
+      buildingFilter: "brightness(0.2) saturate(0.5) sepia(0.3) hue-rotate(200deg)",
+      buildingFilterDark: "brightness(0.12) saturate(0.4) sepia(0.3) hue-rotate(210deg)",
     };
   } else {
     return {
@@ -63,7 +72,9 @@ const getGreeting = () => {
       cloudColor: "text-slate-700 dark:text-slate-700",
       cloudOpacity: 0.1,
       isNight: true,
-      celestial: "moon" as const
+      celestial: "moon" as const,
+      buildingFilter: "brightness(0.15) saturate(0.4) sepia(0.2) hue-rotate(200deg)",
+      buildingFilterDark: "brightness(0.1) saturate(0.3) sepia(0.2) hue-rotate(210deg)",
     };
   }
 };
@@ -120,7 +131,7 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
       
       {/* Celestial Body */}
       <motion.div 
-        className="absolute top-8 right-8 md:right-16 pointer-events-none"
+        className="absolute top-8 right-8 md:right-16 z-[1] pointer-events-none"
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 1 }}
@@ -142,12 +153,12 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
       </motion.div>
 
       {/* Background Cloud (Behind Sun) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 z-[1] overflow-hidden pointer-events-none">
          <motion.div 
-            className={`absolute top-12 right-4 md:right-12 w-40 h-24 ${greeting.cloudColor}`}
+            className={`absolute top-12 right-16 md:right-28 w-40 h-24 ${greeting.cloudColor}`}
             style={{ opacity: greeting.cloudOpacity * 0.4 }}
-            animate={{ x: [0, 20, 0] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ x: [0, -15, 0, 15, 0] }}
+            transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
          >
             <CloudSVG className="w-full h-full" />
          </motion.div>
@@ -155,7 +166,7 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
 
       {/* Stars for night */}
       {greeting.isNight && (
-        <div className="absolute inset-0 opacity-60 pointer-events-none">
+        <div className="absolute inset-0 z-[1] opacity-60 pointer-events-none">
            {stars.map((star, i) => (
              <motion.div
                key={i}
@@ -169,25 +180,49 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
       )}
 
       {/* Foreground Clouds (In front of Sun) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 z-[1] overflow-hidden pointer-events-none">
          <motion.div 
-            className={`absolute top-16 right-16 md:right-24 w-32 h-20 ${greeting.cloudColor}`}
+            className={`absolute top-16 right-28 md:right-40 w-32 h-20 ${greeting.cloudColor}`}
             style={{ opacity: greeting.cloudOpacity }}
-            animate={{ x: [0, -15, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            animate={{ x: [0, -20, 0, 20, 0] }}
+            transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
          >
             <CloudSVG className="w-full h-full" />
          </motion.div>
          
          <motion.div 
-            className={`absolute top-24 right-2 md:right-8 w-48 h-28 ${greeting.cloudColor}`}
+            className={`absolute top-24 right-12 md:right-24 w-48 h-28 ${greeting.cloudColor}`}
             style={{ opacity: greeting.cloudOpacity * 0.8 }}
-            animate={{ x: [0, 10, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            animate={{ x: [0, -12, 0, 12, 0] }}
+            transition={{ duration: 50, repeat: Infinity, ease: "easeInOut", delay: 2 }}
          >
             <CloudSVG className="w-full h-full" />
          </motion.div>
       </div>
+
+      {/* College Building Illustration */}
+       <motion.div
+         className="absolute -bottom-6 right-0 z-[5] pointer-events-none select-none"
+       >
+         <Image
+           src="/ucek-illustration.png"
+           alt="UCEK College Building"
+           width={500}
+           height={350}
+           className="w-[140px] h-auto sm:w-[180px] md:w-[240px] lg:w-[280px] dark:hidden"
+           style={{ filter: greeting.buildingFilter }}
+           priority={false}
+         />
+         <Image
+           src="/ucek-illustration.png"
+           alt="UCEK College Building"
+           width={500}
+           height={350}
+           className="w-[140px] h-auto sm:w-[180px] md:w-[240px] lg:w-[280px] hidden dark:block"
+           style={{ filter: greeting.buildingFilterDark }}
+           priority={false}
+         />
+       </motion.div>
 
       {/* Content */}
       <div className="relative z-10">
