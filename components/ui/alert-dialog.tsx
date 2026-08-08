@@ -5,6 +5,7 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import { useIsMobile } from "@/lib/use-mobile"
 
 function AlertDialog({
   ...props
@@ -48,6 +49,32 @@ function AlertDialogContent({
   className,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+  const isMobile = useIsMobile()
+
+  if (isMobile) {
+    return (
+      <AlertDialogPortal>
+        <AlertDialogOverlay />
+        <AlertDialogPrimitive.Content
+          data-slot="alert-dialog-content"
+          className={cn(
+            "bg-background fixed inset-x-0 bottom-0 z-50 mt-24 grid gap-4 rounded-t-2xl border-t p-6 shadow-lg",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+            "duration-300",
+            className
+          )}
+          {...props}
+        >
+          {/* Drag handle indicator */}
+          <div className="mx-auto h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
+          {props.children}
+        </AlertDialogPrimitive.Content>
+      </AlertDialogPortal>
+    )
+  }
+
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
