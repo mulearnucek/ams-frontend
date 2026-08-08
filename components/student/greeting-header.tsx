@@ -9,7 +9,7 @@ type GreetingHeaderProps = {
 };
 
 const getGreeting = () => {
-  const hour = new Date().getHours() +15;
+  const hour = new Date().getHours();
   
   if (hour >= 5 && hour < 12) {
     return {
@@ -202,7 +202,7 @@ export default function GreetingHeader({ userName }: GreetingHeaderProps) {
 
       {/* College Building Illustration */}
        <motion.div
-         className="absolute -bottom-6 right-0 z-[5] pointer-events-none select-none"
+         className="absolute -bottom-2 md:-bottom-6 right-0 z-[5] pointer-events-none select-none"
        >
          <Image
            src="/ucek-illustration.png"
