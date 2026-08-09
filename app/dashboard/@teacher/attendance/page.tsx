@@ -188,7 +188,8 @@ export default function AttendancePage() {
     }));
   }, [sessions]);
 
-  // Year -> groups, newest year first; groups within a year sorted by subject then batch.
+  // Year -> groups, newest year first; groups within a year ordered live-before-archived,
+  // then by descending semester.
   const groupsByYear = useMemo(() => {
     const map = new Map<number, ClassGroup[]>();
     const unassigned: ClassGroup[] = [];
@@ -203,8 +204,24 @@ export default function AttendancePage() {
       map.set(group.admYear, bucket);
     });
 
+    // `subjectSem` is a free-form string off the API and can be "N/A". A finite
+    // sentinel rather than -Infinity, so that two unparseable sems subtract to 0
+    // instead of NaN - a NaN out of a comparator makes the whole sort undefined.
+    // Real semesters are 1-8, so -1 sinks them below every genuine value.
+    const semRank = (group: ClassGroup) => {
+      const parsed = Number.parseInt(group.subjectSem, 10);
+      return Number.isNaN(parsed) ? -1 : parsed;
+    };
+
+    // Archived classes go last regardless of semester - a past-semester S8 is not
+    // more relevant than a live S3. Within each of those two bands the highest
+    // semester leads, since that is the teacher's current work. Subject and batch
+    // name remain the final tiebreakers so the order stays stable across loads.
     const sortGroups = (list: ClassGroup[]) =>
       [...list].sort((a, b) => {
+        if (a.archived !== b.archived) return a.archived ? 1 : -1;
+        const semCompare = semRank(b) - semRank(a);
+        if (semCompare !== 0) return semCompare;
         const subjectCompare = a.subjectName.localeCompare(b.subjectName);
         if (subjectCompare !== 0) return subjectCompare;
         return a.batchName.localeCompare(b.batchName);
