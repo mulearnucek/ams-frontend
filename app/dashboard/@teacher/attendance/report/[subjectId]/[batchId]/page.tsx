@@ -79,22 +79,23 @@ export default function ClassReportPage() {
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-8 space-y-6">
-      <div className="flex flex-col gap-6 mb-6">
+    <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
+      {/* flex-col on mobile so the export button drops below the title instead of
+          squeezing it into a couple of characters' worth of width - that's what was
+          forcing "Class Attendance Report" onto three cramped, misaligned lines. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Class Attendance Report</h1>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Class Attendance Report</h1>
             <p className="text-muted-foreground text-sm">Detailed tabular view of attendance</p>
           </div>
-          <div className="ml-auto">
-            <Button onClick={handleExportCsv} disabled={!data || data.students.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-          </div>
         </div>
+        <Button onClick={handleExportCsv} disabled={!data || data.students.length === 0} className="w-full sm:w-auto">
+          <Download className="mr-2 h-4 w-4" /> Export CSV
+        </Button>
       </div>
 
       {error ? (

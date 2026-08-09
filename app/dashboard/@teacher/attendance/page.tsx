@@ -278,8 +278,8 @@ export default function AttendancePage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Attendance Management</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Attendance Management</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Manage attendance sessions and records
           </p>
         </div>

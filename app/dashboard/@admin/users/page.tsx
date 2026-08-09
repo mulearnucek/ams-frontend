@@ -25,7 +25,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
-import { CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Eye, Pencil, Trash2, Search, UserPlus, Upload, Download, Loader2, ChevronRight, ChevronDown, Folder, Users, LayoutList } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -318,8 +318,8 @@ export default function UsersPage() {
       <div className="p-4 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="mb-10">
-            <CardTitle className="text-3xl font-bold tracking-tight">User Management</CardTitle>
-            <CardDescription>View, edit, and manage all users in the system</CardDescription>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">User Management</h1>
+            <p className="text-sm text-muted-foreground">View, edit, and manage all users in the system</p>
           </div>
           <div className="flex w-full md:w-auto flex-col md:flex-row gap-2 mb-3">
             <Button variant="outline" onClick={handleExportCsv} disabled={isExporting}>

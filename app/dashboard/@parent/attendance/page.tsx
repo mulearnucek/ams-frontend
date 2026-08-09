@@ -145,8 +145,8 @@ export default function ParentAttendancePage() {
   return (
     <div className="min-h-screen p-4 md:p-8 space-y-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold">Child Attendance</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Child Attendance</h1>
+        <p className="text-sm text-muted-foreground">
           View your child’s attendance by subject and semester.
         </p>
       </div>

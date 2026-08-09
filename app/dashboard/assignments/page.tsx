@@ -88,9 +88,7 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-6">
-      <div className="font-semibold text-2xl ">
-        Assignments
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Assignments</h1>
       {sortedAssignments.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />

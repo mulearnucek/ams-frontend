@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, Bell } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -462,22 +462,17 @@ export default function NotificationsPage() {
   return (
     <div className="container mx-auto max-w-3xl p-4 md:p-6 pb-20 md:pb-6 space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-            <Bell className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold leading-tight sm:text-2xl">
-              {isAdmin ? "All Notifications" : "Notifications"}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {isAdmin
-                ? "Every notification across the system"
-                : unreadCount > 0
-                ? `${unreadCount} unread`
-                : "You're all caught up"}
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {isAdmin ? "All Notifications" : "Notifications"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isAdmin
+              ? "Every notification across the system"
+              : unreadCount > 0
+              ? `${unreadCount} unread`
+              : "You're all caught up"}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {canCreateNotification && (
