@@ -263,6 +263,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     relation: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [step, setStep] = useState<1 | 2>(1);
   const router = useRouter();
   const searchParams = useSearchParams();
   const {user, incompleteProfile, isLoading : isPending, session, refetchUser, config} = useAuth();
@@ -359,38 +360,78 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     handleInputChange(name as keyof FormData, value);
   };
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.firstName.trim() || formData.firstName.length < 1) 
-      newErrors.firstName = 'First name must be at least 1 characters';
-    if (!formData.lastName.trim() || formData.lastName.length < 1) 
-      newErrors.lastName = 'Last name must be at least 1 characters';
-    if (!formData.phone.trim() || formData.phone.length < 10) 
-      newErrors.phone = 'Phone number must be at least 10 digits';
-    if (!formData.gender) newErrors.gender = 'Please select a gender';
+  // Split so the "Next" gate on step 1 and the final submit on step 2 can each
+  // validate just their own fields, while validateForm (used at final submit)
+  // still runs both and produces the exact same combined error set as before.
+  const validateStep1Fields = (data: FormData): Record<string, string> => {
+    const stepErrors: Record<string, string> = {};
 
-    if (user?.role === 'student') {
-      if (!formData.batch) newErrors.batch = 'Batch is required';
-      if (!formData.admissionNumber.trim()) newErrors.admissionNumber = 'Required';
-      if (!formData.admissionYear.trim()) newErrors.admissionYear = 'Required';
-      if (!formData.candidateCode.trim()) newErrors.candidateCode = 'Required';
-      if (!formData.department) newErrors.department = 'Required';
-      if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Required';
-    } else if (user?.role === 'teacher') {
-      if (!formData.designation.trim()) newErrors.designation = 'Required';
-      if (!formData.department) newErrors.department = 'Required';
-      if (!formData.dateOfJoining) newErrors.dateOfJoining = 'Required';
-    } else if (user?.role === 'parent') {
-      if (!formData.relation) newErrors.relation = 'Please select your relation';
+    if (!data.firstName.trim() || data.firstName.length < 1)
+      stepErrors.firstName = 'First name must be at least 1 characters';
+    if (!data.lastName.trim() || data.lastName.length < 1)
+      stepErrors.lastName = 'Last name must be at least 1 characters';
+    if (!data.phone.trim() || data.phone.length < 10)
+      stepErrors.phone = 'Phone number must be at least 10 digits';
+    if (!data.gender) stepErrors.gender = 'Please select a gender';
+
+    return stepErrors;
+  };
+
+  const validateStep2Fields = (data: FormData, role?: string): Record<string, string> => {
+    const stepErrors: Record<string, string> = {};
+
+    if (role === 'student') {
+      if (!data.batch) stepErrors.batch = 'Batch is required';
+      if (!data.admissionNumber.trim()) stepErrors.admissionNumber = 'Required';
+      if (!data.admissionYear.trim()) stepErrors.admissionYear = 'Required';
+      if (!data.candidateCode.trim()) stepErrors.candidateCode = 'Required';
+      if (!data.department) stepErrors.department = 'Required';
+      if (!data.dateOfBirth) stepErrors.dateOfBirth = 'Required';
+    } else if (role === 'teacher') {
+      if (!data.designation.trim()) stepErrors.designation = 'Required';
+      if (!data.department) stepErrors.department = 'Required';
+      if (!data.dateOfJoining) stepErrors.dateOfJoining = 'Required';
+    } else if (role === 'parent') {
+      if (!data.relation) stepErrors.relation = 'Please select your relation';
     }
+
+    return stepErrors;
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      ...validateStep1Fields(formData),
+      ...validateStep2Fields(formData, user?.role),
+    };
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const STEP1_FIELDS = ['firstName', 'lastName', 'phone', 'gender'] as const;
+
+  const goToStep2 = () => {
+    const stepErrors = validateStep1Fields(formData);
+    // Only touch step-1 error keys here, so any lingering step-2 errors from a
+    // previous attempt (visible again once the user goes back) aren't wiped.
+    setErrors((prev) => {
+      const next = { ...prev };
+      STEP1_FIELDS.forEach((field) => {
+        if (stepErrors[field]) next[field] = stepErrors[field];
+        else delete next[field];
+      });
+      return next;
+    });
+
+    if (Object.keys(stepErrors).length > 0) {
+      setError('Please fix the errors in the form');
+      return;
+    }
+    setError(null);
+    setStep(2);
+  };
+
+  const handleSubmit = async () => {
     if (!validateForm()) {
       setError('Please fix the errors in the form');
       return;
@@ -482,6 +523,17 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     }
   };
 
+  // Single form covers both steps, so Enter and the primary button both land
+  // here; which action they trigger depends only on which step is showing.
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (step === 1) {
+      goToStep2();
+    } else {
+      void handleSubmit();
+    }
+  };
+
   const handleSignOut = async () => {
     await authClient.signOut();
     router.push('/signin');
@@ -534,6 +586,11 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
     );
   }
 
+  const stepTwoLabel =
+    user?.role === 'student' ? 'Academic Details' :
+    user?.role === 'teacher' ? 'Professional Details' :
+    user?.role === 'parent' ? 'Family Details' : 'Additional Details';
+
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <div className="flex flex-col gap-3 text-center">
@@ -552,119 +609,140 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
       )}
 
     
-      <form onSubmit={handleSubmit} className="space-y-4 px-4 sm:px-0">
-        {/* Email Card with Sign Out */}
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <Label className="text-xs text-muted-foreground">Email</Label>
-              <p className="text-sm font-medium mt-1">{user?.email}</p>
-            </div>
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon-sm"
-              onClick={handleSignOut}
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </Card>
-
-        {/* Common Fields */}
-        <div className="grid grid-cols-2 gap-3">
-          <FormField id="firstName" label="First Name" placeholder="John" value={formData.firstName} error={errors.firstName} disabled={locked.name} onChange={handleInputEvent} />
-          <FormField id="lastName" label="Last Name" placeholder="Doe" value={formData.lastName} error={errors.lastName} disabled={locked.name} onChange={handleInputEvent} />
+      <form onSubmit={handleFormSubmit} className="space-y-4 px-4 sm:px-0">
+        {/* Step indicator */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">{step === 1 ? 'Personal Details' : stepTwoLabel}</span>
+          <span className="text-xs text-muted-foreground">Step {step} of 2</span>
         </div>
-        <FormField id="phone" label="Phone Number" type="tel" placeholder="+91 98765 43210" value={formData.phone} error={errors.phone} onChange={handleInputEvent} />
-        <SelectField id="gender" label="Gender" value={formData.gender} error={errors.gender} placeholder="Select gender"
-          options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }]} onValueChange={(value) => handleInputChange('gender', value)} />
 
-        {/* Role-Specific Fields */}
-        {user?.role === 'student' ? (
+        {step === 1 ? (
           <>
-            {/* Batch: disabled if pre-filled by admin, editable otherwise */}
-            <FormField
-              id="batch"
-              label="Batch"
-              placeholder="e.g., 2026-2030 or IT"
-              value={formData.batch}
-              error={errors.batch}
-              disabled={locked.batch}
-              onChange={handleInputEvent}
-            />
-
-            <div className="grid grid-cols-2 gap-3">
-              <FormField id="admissionNumber" label="Admission No." placeholder="29CSE555" value={formData.admissionNumber} error={errors.admissionNumber} disabled={locked.admissionNumber} onChange={handleInputEvent} />
-              <FormField id="admissionYear" label="Admission Year" type="number" placeholder="2026" value={formData.admissionYear} error={errors.admissionYear} disabled={locked.admissionYear} onChange={handleInputEvent} />
-            </div>
-            <div className="space-y-1">
-              <FormField id="candidateCode" label="Candidate Code" placeholder="41529505078" value={formData.candidateCode} error={errors.candidateCode} disabled onChange={handleInputEvent} />
-              {!formData.candidateCode && (
-                <p className="text-xs text-muted-foreground">
-                  Not yet assigned — contact your administrator to set your candidate code.
-                </p>
-              )}
-            </div>
-            {!locked.department ? (
-              <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
-            ) : (
-              <FormField id="department" label="Department" placeholder="Department" value={formData.department} error={errors.department} disabled={locked.department} onChange={handleInputEvent} />
-            )}
-            <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} error={errors.dateOfBirth} disabled={locked.dateOfBirth} onChange={handleInputEvent} />
-          </>
-        ) : user?.role === 'teacher' ? (
-          <>
-            <FormField id="designation" label="Designation" placeholder="e.g., Assistant Professor" value={formData.designation} error={errors.designation} onChange={handleInputEvent} />
-            <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
-            <FormField id="dateOfJoining" label="Date of Joining" type="date" value={formData.dateOfJoining} error={errors.dateOfJoining} onChange={handleInputEvent} />
-          </>
-        ) : user?.role === 'parent' ? (
-          <>
-            <SelectField 
-              id="relation" 
-              label="Relation to Child" 
-              value={formData.relation} 
-              error={errors.relation} 
-              placeholder="Select relation"
-              options={[{ value: 'mother', label: 'Mother' }, { value: 'father', label: 'Father' }, { value: 'guardian', label: 'Guardian' }]} 
-              onValueChange={(value) => handleInputChange('relation', value)} 
-            />
-            {linkedChild ? (
-              <div className="space-y-2">
-                <Label>Linked Child</Label>
-                <Card className="flex-row items-center gap-3 p-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
-                    {`${linkedChild.first_name ?? ''} ${linkedChild.last_name ?? ''}`.trim().slice(0, 1).toUpperCase() || '?'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">
-                      {linkedChild.first_name} {linkedChild.last_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {linkedChildProfile.candidate_code ?? 'No candidate code'}
-                      {linkedChildProfile.department ? ` · ${linkedChildProfile.department}` : ''}
-                    </p>
-                  </div>
-                </Card>
+            {/* Email Card with Sign Out */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="text-sm font-medium mt-1">{user?.email}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleSignOut}
+                  title="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
               </div>
-            ) : (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Not linked to a student yet</AlertTitle>
-                <AlertDescription>
-                  Contact your administrator to link your child&apos;s account before you can complete registration.
-                </AlertDescription>
-              </Alert>
-            )}
-          </>
-        ) : null}
+            </Card>
 
-        <Button disabled={isLoading} className="w-full">
-          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Complete Registration
-        </Button>
+            {/* Common Fields */}
+            <div className="grid grid-cols-2 gap-3">
+              <FormField id="firstName" label="First Name" placeholder="John" value={formData.firstName} error={errors.firstName} disabled={locked.name} onChange={handleInputEvent} />
+              <FormField id="lastName" label="Last Name" placeholder="Doe" value={formData.lastName} error={errors.lastName} disabled={locked.name} onChange={handleInputEvent} />
+            </div>
+            <FormField id="phone" label="Phone Number" type="tel" placeholder="+91 98765 43210" value={formData.phone} error={errors.phone} onChange={handleInputEvent} />
+            <SelectField id="gender" label="Gender" value={formData.gender} error={errors.gender} placeholder="Select gender"
+              options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }]} onValueChange={(value) => handleInputChange('gender', value)} />
+
+            <Button type="submit" className="w-full">
+              Next
+            </Button>
+          </>
+        ) : (
+          <>
+            {/* Role-Specific Fields */}
+            {user?.role === 'student' ? (
+              <>
+                {/* Batch: disabled if pre-filled by admin, editable otherwise */}
+                <FormField
+                  id="batch"
+                  label="Batch"
+                  placeholder="e.g., 2026-2030 or IT"
+                  value={formData.batch}
+                  error={errors.batch}
+                  disabled={locked.batch}
+                  onChange={handleInputEvent}
+                />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField id="admissionNumber" label="Admission No." placeholder="29CSE555" value={formData.admissionNumber} error={errors.admissionNumber} disabled={locked.admissionNumber} onChange={handleInputEvent} />
+                  <FormField id="admissionYear" label="Admission Year" type="number" placeholder="2026" value={formData.admissionYear} error={errors.admissionYear} disabled={locked.admissionYear} onChange={handleInputEvent} />
+                </div>
+                <div className="space-y-1">
+                  <FormField id="candidateCode" label="Candidate Code" placeholder="41529505078" value={formData.candidateCode} error={errors.candidateCode} disabled onChange={handleInputEvent} />
+                  {!formData.candidateCode && (
+                    <p className="text-xs text-muted-foreground">
+                      Not yet assigned — contact your administrator to set your candidate code.
+                    </p>
+                  )}
+                </div>
+                {!locked.department ? (
+                  <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
+                ) : (
+                  <FormField id="department" label="Department" placeholder="Department" value={formData.department} error={errors.department} disabled={locked.department} onChange={handleInputEvent} />
+                )}
+                <FormField id="dateOfBirth" label="Date of Birth" type="date" value={formData.dateOfBirth} error={errors.dateOfBirth} disabled={locked.dateOfBirth} onChange={handleInputEvent} />
+              </>
+            ) : user?.role === 'teacher' ? (
+              <>
+                <FormField id="designation" label="Designation" placeholder="e.g., Assistant Professor" value={formData.designation} error={errors.designation} onChange={handleInputEvent} />
+                <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
+                <FormField id="dateOfJoining" label="Date of Joining" type="date" value={formData.dateOfJoining} error={errors.dateOfJoining} onChange={handleInputEvent} />
+              </>
+            ) : user?.role === 'parent' ? (
+              <>
+                <SelectField
+                  id="relation"
+                  label="Relation to Child"
+                  value={formData.relation}
+                  error={errors.relation}
+                  placeholder="Select relation"
+                  options={[{ value: 'mother', label: 'Mother' }, { value: 'father', label: 'Father' }, { value: 'guardian', label: 'Guardian' }]}
+                  onValueChange={(value) => handleInputChange('relation', value)}
+                />
+                {linkedChild ? (
+                  <div className="space-y-2">
+                    <Label>Linked Child</Label>
+                    <Card className="flex-row items-center gap-3 p-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">
+                        {`${linkedChild.first_name ?? ''} ${linkedChild.last_name ?? ''}`.trim().slice(0, 1).toUpperCase() || '?'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">
+                          {linkedChild.first_name} {linkedChild.last_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {linkedChildProfile.candidate_code ?? 'No candidate code'}
+                          {linkedChildProfile.department ? ` · ${linkedChildProfile.department}` : ''}
+                        </p>
+                      </div>
+                    </Card>
+                  </div>
+                ) : (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Not linked to a student yet</AlertTitle>
+                    <AlertDescription>
+                      Contact your administrator to link your child&apos;s account before you can complete registration.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            ) : null}
+
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setStep(1)} disabled={isLoading} className="flex-1">
+                Back
+              </Button>
+              <Button disabled={isLoading} className="flex-1">
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Complete Registration
+              </Button>
+            </div>
+          </>
+        )}
       </form>
     </div>
   );

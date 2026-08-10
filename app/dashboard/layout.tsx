@@ -1,7 +1,7 @@
 "use client";
 
 import Navbar from "@/components/appshell/navbar";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, BookOpen, Home, Users, ClipboardCheck, CalendarDays } from "lucide-react";
 import Dock from '@/components/appshell/Dock';
 import { Toaster } from '@/components/ui/sonner';
@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth-context";
 import { FLAGS } from "@/lib/flags";
 import Loading from "@/app/loading";
 import Avatar, { genConfig } from 'react-nice-avatar';
+import { shouldShowPwaPrompt } from "@/lib/pwa";
 
 // Routes shared by all roles
 const SHARED_ROUTES = [
@@ -38,6 +39,11 @@ export default function DashboardLayout({
   const { user, isLoading, session, incompleteProfile, config } = useAuth();
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
   const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
+  // Runs once per layout mount, not on every route change within /dashboard -
+  // otherwise navigating from /dashboard to /dashboard/profile after already
+  // skipping today would re-run the check against a still-fresh pathname.
+  const pwaCheckRef = useRef(false);
+  const [pwaCheckDone, setPwaCheckDone] = useState(false);
 
   const profileImageConfig = useMemo(() => {
     const gender = user?.gender?.toLowerCase();
@@ -126,7 +132,15 @@ export default function DashboardLayout({
       router.push('/onboarding');
       return;
     }
-  }, [isLoading, session, user, incompleteProfile, router]);
+
+    if (pwaCheckRef.current) return;
+    pwaCheckRef.current = true;
+    if (shouldShowPwaPrompt()) {
+      router.push(`/pwa-install?r=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    setPwaCheckDone(true);
+  }, [isLoading, session, user, incompleteProfile, pathname, router]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -139,7 +153,7 @@ export default function DashboardLayout({
     return <Loading />;
   }
 
-  if (!user || incompleteProfile) {
+  if (!user || incompleteProfile || !pwaCheckDone) {
     return <Loading />;
   }
 

@@ -5,15 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Calendar, Clock, Trash2, ChevronDown, ChevronRight, Share2, Folder, BookOpen, Archive } from "lucide-react";
+import { Calendar, Clock, Trash2, ChevronDown, ChevronRight, Share2, Folder, BookOpen, Archive, Lock, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth-context";
@@ -29,10 +21,15 @@ type ClassGroup = {
   subjectCode: string;
   subjectSem: string;
   batchName: string;
+  department: string;
   admYear: number | null;
   archived: boolean;
   sessions: AttendanceSession[];
 };
+
+// Sessions shown before "View All Sessions" collapses the rest - matches the
+// design's 4-row default so the list reads as a preview, not a dump of everything.
+const DEFAULT_VISIBLE_SESSIONS = 4;
 
 export default function AttendancePage() {
   const router = useRouter();
@@ -43,6 +40,7 @@ export default function AttendancePage() {
   const [shareDialogSession, setShareDialogSession] = useState<AttendanceSession | null>(null);
   const [expandedYears, setExpandedYears] = useState<number[]>([]);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [showAllSessions, setShowAllSessions] = useState(false);
 
   useEffect(() => {
     if (user?.email) {
@@ -173,6 +171,7 @@ export default function AttendancePage() {
           subjectCode: session.subject.subject_code ?? "",
           subjectSem: session.subject.sem ?? session.sem ?? "N/A",
           batchName: session.batch?.name ?? "N/A",
+          department: session.batch?.department ?? "",
           admYear: session.batch?.adm_year ?? null,
           archived: Boolean(session.archived),
           sessions: [session],
@@ -243,6 +242,13 @@ export default function AttendancePage() {
     setSelectedGroupKey((prev) => prev ?? groupsByYear.years[0].groups[0]?.groupKey ?? null);
   }, [loading, groupsByYear]);
 
+  // Switching classes should always start collapsed - otherwise "View All Sessions"
+  // left expanded on one class would carry over and silently dump every session
+  // of the next one selected.
+  useEffect(() => {
+    setShowAllSessions(false);
+  }, [selectedGroupKey]);
+
   const toggleYear = (year: number) => {
     setExpandedYears((prev) =>
       prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
@@ -250,6 +256,16 @@ export default function AttendancePage() {
   };
 
   const selectedGroup = groups.find((g) => g.groupKey === selectedGroupKey) ?? null;
+  const selectedGroupMeta = selectedGroup
+    ? [selectedGroup.department, selectedGroup.admYear ? `${selectedGroup.admYear} Batch` : null].filter(
+        (v): v is string => Boolean(v)
+      )
+    : [];
+  const visibleSessions = selectedGroup
+    ? showAllSessions
+      ? selectedGroup.sessions
+      : selectedGroup.sessions.slice(0, DEFAULT_VISIBLE_SESSIONS)
+    : [];
 
   const handleDelete = async (sessionId: string) => {
     try {
@@ -262,13 +278,10 @@ export default function AttendancePage() {
     }
   };
 
-  const getSessionTypeBadge = (type: string) => {
-    const variants = {
-      regular: "default",
-      extra: "secondary",
-      practical: "outline",
-    } as const;
-    return variants[type as keyof typeof variants] || "default";
+  const sessionTypeStyles: Record<string, string> = {
+    regular: "bg-primary/10 text-primary",
+    practical: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    extra: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   };
 
   const totalSessionCount = sessions.length;
@@ -381,113 +394,123 @@ export default function AttendancePage() {
                 Select a class from the list to view its sessions.
               </div>
             ) : (
-              <>
-                <div className="p-4 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold truncate min-w-0 flex-1">{selectedGroup.subjectName}</h2>
-                      <Badge variant="outline" className="shrink-0">S{selectedGroup.subjectSem}</Badge>
-                      {selectedGroup.archived && (
-                        <Badge variant="secondary" className="gap-1 shrink-0">
-                          <Archive className="h-3 w-3" />Read-only
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {selectedGroup.batchName}
-                      {selectedGroup.admYear ? ` · ${selectedGroup.admYear} Batch` : ""}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-base px-3 py-1">
-                      {selectedGroup.sessions.length} {selectedGroup.sessions.length === 1 ? "session" : "sessions"}
+              <div className="p-3 sm:p-5 space-y-4">
+                {/* Class header */}
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight sm:text-xl">{selectedGroup.subjectName}</h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {selectedGroupMeta.length > 0 && <span>{selectedGroupMeta.join(" · ")}</span>}
+                    <Badge variant="secondary" className="border-transparent bg-primary/10 text-primary">
+                      Semester {selectedGroup.subjectSem}
                     </Badge>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        const subjectId = selectedGroup.sessions[0].subject._id;
-                        const batchId = selectedGroup.sessions[0].batch._id;
-                        router.push(`/dashboard/attendance/report/${subjectId}/${batchId}`);
-                      }}
-                    >
-                      View Report
-                    </Button>
+                    {selectedGroup.archived && (
+                      <Badge variant="outline" className="gap-1">
+                        <Lock className="h-3 w-3" /> Read-only
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
-                <div className="p-4 overflow-x-auto">
-                  <div className="rounded-md border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Time</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead className="hidden sm:table-cell">Duration</TableHead>
-                          <TableHead className="text-right"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedGroup.sessions.map((session) => (
-                          <TableRow
-                            key={session._id}
-                            className={cn(
-                              "hover:bg-muted/50 cursor-pointer",
-                              session.archived && "opacity-70"
-                            )}
-                            onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
-                          >
-                            <TableCell>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                <span>
-                                  {format(new Date(session.start_time), "MMM dd, hh:mm a")} -{" "}
-                                  {format(new Date(session.end_time), "hh:mm a")}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={getSessionTypeBadge(session.session_type)}>
-                                {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
-                              {session.hours_taken} {session.hours_taken === 1 ? "hour" : "hours"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Share"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShareDialogSession(session);
-                                  }}
-                                >
-                                  <Share2 className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="Delete"
-                                  className="text-destructive hover:text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteDialogSession(session);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                {/* Sessions banner */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-primary/10 px-3 py-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-primary sm:text-sm">
+                    <Clock className="h-3.5 w-3.5" />
+                    {selectedGroup.sessions.length} {selectedGroup.sessions.length === 1 ? "Session" : "Sessions"}
                   </div>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline sm:text-sm"
+                    onClick={() => {
+                      const subjectId = selectedGroup.sessions[0].subject._id;
+                      const batchId = selectedGroup.sessions[0].batch._id;
+                      router.push(`/dashboard/attendance/report/${subjectId}/${batchId}`);
+                    }}
+                  >
+                    View Report
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              </>
+
+                {/* Session Schedule */}
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Session Schedule</h3>
+                  <div className="space-y-1.5">
+                    {visibleSessions.map((session) => (
+                      <div
+                        key={session._id}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer hover:bg-muted/50",
+                          session.archived && "opacity-70"
+                        )}
+                        onClick={() => router.push(`/dashboard/attendance/session/${session._id}`)}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                          <Calendar className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        {/* truncate, not wrap - on a narrow phone the full date/time range
+                            doesn't fit alongside the badge and both action buttons, and
+                            wrapping to a second line is what pushed this to two lines
+                            before. Ellipsizing keeps every row pinned to one line. */}
+                        <div className="min-w-0 flex-1 truncate text-xs font-medium sm:text-sm">
+                          {format(new Date(session.start_time), "MMM d, h:mm a")} -{" "}
+                          {format(new Date(session.end_time), "h:mm a")}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "shrink-0 border-transparent",
+                              sessionTypeStyles[session.session_type] ?? sessionTypeStyles.regular
+                            )}
+                          >
+                            {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            title="Share"
+                            className="shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShareDialogSession(session);
+                            }}
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            title="Delete"
+                            className="shrink-0 text-destructive hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteDialogSession(session);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedGroup.sessions.length > DEFAULT_VISIBLE_SESSIONS && (
+                    <div className="flex justify-center pt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-primary hover:text-primary"
+                        onClick={() => setShowAllSessions((prev) => !prev)}
+                      >
+                        {showAllSessions ? "Show Less" : "View All Sessions"}
+                        <ChevronDown
+                          className={cn("ml-1 h-4 w-4 transition-transform", showAllSessions && "rotate-180")}
+                        />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -16,6 +16,7 @@ import { createBulkAttendanceRecords, updateBulkAttendanceRecords, type Attendan
 import type { User } from "@/lib/types/UserTypes";
 import CsvAttendanceDialog from "@/components/teacher/csv-attendance-dialog";
 import { ShareAttendanceDialog } from "../../share-attendance-dialog";
+import { toTitleCase } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -475,7 +476,7 @@ export default function SessionAttendanceMethodsPage() {
                       >
                         <span className="text-xs">{lastThreeDigits}</span>
                       </div>
-                      <p className="font-medium text-sm">{student.name}</p>
+                      <p className="font-medium text-sm">{toTitleCase(student.name)}</p>
                     </div>
                     {markMode && (
                       <div className="flex items-center gap-2 shrink-0">

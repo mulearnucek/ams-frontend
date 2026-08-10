@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { getAttendanceSessionById, type AttendanceSession } from "@/lib/api/attendance-session";
 import { Loader2 } from "lucide-react";
+import { toTitleCase } from "@/lib/utils";
 
 interface ShareAttendanceDialogProps {
   session: AttendanceSession | null;
@@ -59,7 +60,7 @@ export function ShareAttendanceDialog({ session, onClose }: ShareAttendanceDialo
     if (shareNames) {
       listText = filteredRecords.map(r => {
         const roll = String((r.student.profile as any)?.candidate_code || (r.student.profile as any)?.adm_number || "").slice(-3);
-        return `${roll} - ${r.student.name}`;
+        return `${roll} - ${toTitleCase(r.student.name)}`;
       }).join("\n");
     } else {
       listText = filteredRecords.map(r => {

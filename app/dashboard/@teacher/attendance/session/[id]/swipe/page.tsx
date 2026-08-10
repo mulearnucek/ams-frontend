@@ -13,6 +13,7 @@ import type { User } from "@/lib/types/UserTypes";
 import { toast } from "sonner";
 import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion";
 import { useAttendance, AttendanceProvider } from "@/app/context/AttendanceContext";
+import { toTitleCase } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -199,7 +200,7 @@ function SwipeCard({
         <div className="mt-4 space-y-1 max-sm:mt-2">
           <div style={{ height: 1, background: "rgba(255,255,255,0.15)", marginBottom: 10 }} />
           <p className="max-sm:text-[16px]" style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", color: "rgba(255,255,255,0.95)" }}>
-            {student.name}
+            {toTitleCase(student.name)}
           </p>
           <div className="flex items-center justify-between">
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 500, letterSpacing: "0.06em" }}>

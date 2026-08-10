@@ -10,6 +10,7 @@ import { ArrowLeft, AlertCircle, CalendarDays, Download } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getClassReport, type ClassReportData } from "@/lib/api/attendance-stats";
 import { format } from "date-fns";
+import { toTitleCase } from "@/lib/utils";
 
 export default function ClassReportPage() {
   const params = useParams();
@@ -175,7 +176,7 @@ export default function ClassReportPage() {
                           className="hover:underline cursor-pointer text-foreground"
                           onClick={() => router.push(`/dashboard/attendance/student/${student._id}`)}
                         >
-                          {student.name}
+                          {toTitleCase(student.name)}
                         </span>
                         <span className="text-xs text-muted-foreground w-[120px] overflow-hidden text-ellipsis whitespace-nowrap block" dir="rtl" style={{ textAlign: "left" }}>
                           {student.candidate_code || student.roll_no}
