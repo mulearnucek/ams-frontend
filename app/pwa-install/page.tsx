@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, MoreVertical, Share, Smartphone, SquarePlus } from "lucide-react";
+import { Loader2, Share, Smartphone, SquarePlus } from "lucide-react";
+import { toast } from "sonner";
 import {
   clearDeferredInstallPrompt,
   getDeferredInstallPrompt,
@@ -49,7 +50,13 @@ export default function PwaInstallPage() {
 
   const handleAndroidInstall = async () => {
     const prompt = getDeferredInstallPrompt();
-    if (!prompt) return;
+    if (!prompt) {
+      // Some Android browsers (Firefox, Samsung Internet in some configs) never
+      // fire beforeinstallprompt at all - there's no programmatic install for
+      // them, only the browser's own menu.
+      toast.info('Tap your browser\'s menu and choose "Install app" or "Add to Home screen".');
+      return;
+    }
     setInstalling(true);
     try {
       await prompt.prompt();
@@ -69,33 +76,21 @@ export default function PwaInstallPage() {
     );
   }
 
-  const deferredPrompt = getDeferredInstallPrompt();
-
   const androidCard = (
     <Card key="android" className="space-y-4 p-5 text-left">
       <div className="flex items-center gap-2">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
           A
         </span>
-        <h2 className="text-sm font-semibold">Android (Chrome)</h2>
+        <h2 className="text-sm font-semibold">Android</h2>
       </div>
-      {deferredPrompt ? (
-        <Button onClick={handleAndroidInstall} disabled={installing} className="w-full">
-          {installing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Install App
-        </Button>
-      ) : (
-        <ol className="space-y-2 text-sm text-muted-foreground">
-          <li className="flex items-start gap-2">
-            <MoreVertical className="mt-0.5 h-4 w-4 shrink-0" />
-            Tap the menu (⋮) in the top-right corner of Chrome
-          </li>
-          <li className="flex items-start gap-2">
-            <SquarePlus className="mt-0.5 h-4 w-4 shrink-0" />
-            Select &quot;Install app&quot; or &quot;Add to Home screen&quot;
-          </li>
-        </ol>
-      )}
+      {/* Always the button, never the manual steps - if beforeinstallprompt hasn't
+          landed yet (or this browser never fires it), handleAndroidInstall falls
+          back to a toast instead of leaving the user with nothing to tap. */}
+      <Button onClick={handleAndroidInstall} disabled={installing} className="w-full">
+        {installing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Install App
+      </Button>
     </Card>
   );
 
@@ -105,8 +100,11 @@ export default function PwaInstallPage() {
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
           i
         </span>
-        <h2 className="text-sm font-semibold">iOS (Safari)</h2>
+        <h2 className="text-sm font-semibold">iOS</h2>
       </div>
+      {/* No install button here on purpose: unlike Chrome/Android, Safari gives web
+          pages no API to trigger "Add to Home Screen" - Apple requires it go through
+          this exact manual flow, so these two steps are the entire install path. */}
       <ol className="space-y-2 text-sm text-muted-foreground">
         <li className="flex items-start gap-2">
           <Share className="mt-0.5 h-4 w-4 shrink-0" />
