@@ -2,18 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, Share, Smartphone, SquarePlus } from "lucide-react";
+import { Download, Loader2, Share, SquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import {
   clearDeferredInstallPrompt,
   getDeferredInstallPrompt,
-  isAndroid,
+  isIOS,
   isRunningStandalone,
   markPwaPromptSeenToday,
 } from "@/lib/pwa";
+import type { UserRole } from "@/lib/types/UserTypes";
+
+// A generic screenshot would look the same for everyone; matching it to the
+// visitor's own role turns "here's what app-like means" into "here's what
+// you're about to get" - reuses the shots already in public/screenshots
+// (see app/page.tsx's marketing preview section) rather than new assets.
+const ROLE_PREVIEW: Partial<Record<UserRole, string>> = {
+  student: "/screenshots/student-dashboard.jpeg",
+  teacher: "/screenshots/teacher-workspace.jpeg",
+  parent: "/screenshots/parent-insights.jpeg",
+  admin: "/screenshots/admin-overview.jpeg",
+  principal: "/screenshots/admin-overview.jpeg",
+  hod: "/screenshots/admin-overview.jpeg",
+  staff: "/screenshots/admin-overview.jpeg",
+};
 
 export default function PwaInstallPage() {
   const router = useRouter();
@@ -48,11 +64,14 @@ export default function PwaInstallPage() {
     }
   }, [isLoading, session, user, incompleteProfile, target, router]);
 
-  const handleAndroidInstall = async () => {
+  // beforeinstallprompt fires on Chromium generally - Android AND desktop
+  // Chrome/Edge - so this is "everything except iOS Safari", not literally
+  // "Android only". iOS is the one platform with no install API at all.
+  const handleInstallClick = async () => {
     const prompt = getDeferredInstallPrompt();
     if (!prompt) {
-      // Some Android browsers (Firefox, Samsung Internet in some configs) never
-      // fire beforeinstallprompt at all - there's no programmatic install for
+      // Some browsers (Firefox for Android, some Samsung Internet configs)
+      // never fire beforeinstallprompt - there's no programmatic install for
       // them, only the browser's own menu.
       toast.info('Tap your browser\'s menu and choose "Install app" or "Add to Home screen".');
       return;
@@ -76,51 +95,8 @@ export default function PwaInstallPage() {
     );
   }
 
-  const androidCard = (
-    <Card key="android" className="space-y-4 p-5 text-left">
-      <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-          A
-        </span>
-        <h2 className="text-sm font-semibold">Android</h2>
-      </div>
-      {/* Always the button, never the manual steps - if beforeinstallprompt hasn't
-          landed yet (or this browser never fires it), handleAndroidInstall falls
-          back to a toast instead of leaving the user with nothing to tap. */}
-      <Button onClick={handleAndroidInstall} disabled={installing} className="w-full">
-        {installing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Install App
-      </Button>
-    </Card>
-  );
-
-  const iosCard = (
-    <Card key="ios" className="space-y-4 p-5 text-left">
-      <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-          i
-        </span>
-        <h2 className="text-sm font-semibold">iOS</h2>
-      </div>
-      {/* No install button here on purpose: unlike Chrome/Android, Safari gives web
-          pages no API to trigger "Add to Home Screen" - Apple requires it go through
-          this exact manual flow, so these two steps are the entire install path. */}
-      <ol className="space-y-2 text-sm text-muted-foreground">
-        <li className="flex items-start gap-2">
-          <Share className="mt-0.5 h-4 w-4 shrink-0" />
-          Tap the Share icon in Safari&apos;s toolbar
-        </li>
-        <li className="flex items-start gap-2">
-          <SquarePlus className="mt-0.5 h-4 w-4 shrink-0" />
-          Scroll down and select &quot;Add to Home Screen&quot;
-        </li>
-      </ol>
-    </Card>
-  );
-
-  // Both platforms are always shown - only the order adapts, so the visitor's
-  // own device leads without hiding the other one entirely.
-  const orderedCards = isAndroid() ? [androidCard, iosCard] : [iosCard, androidCard];
+  const showNativeInstall = !isIOS();
+  const previewImage = (user.role && ROLE_PREVIEW[user.role]) || "/screenshots/admin-overview.jpeg";
 
   return (
     <div className="relative min-h-screen bg-background px-4 py-10 sm:py-16">
@@ -133,22 +109,61 @@ export default function PwaInstallPage() {
         Skip
       </Button>
 
-      <div className="mx-auto flex max-w-md flex-col gap-6 pt-10 text-center sm:pt-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-            <Smartphone className="h-7 w-7 text-primary" />
-          </div>
+      <div className="mx-auto flex max-w-md flex-col items-center gap-6 pt-10 text-center sm:pt-6">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <Download className="h-7 w-7 text-primary" />
+        </div>
+        <div className="space-y-1.5">
           <h1 className="text-2xl font-semibold tracking-tight">Install AMS on your device</h1>
           <p className="text-sm text-muted-foreground">
             Add AMS to your home screen for faster access and a full-screen, app-like experience.
           </p>
         </div>
 
-        {orderedCards}
+        {/* A preview of the dashboard the visitor is about to get - without it, a
+            single platform's install steps leave a lot of blank page below the
+            fold, and this shows rather than just tells what "app-like" means. */}
+        <div className="w-full overflow-hidden rounded-2xl border shadow-sm">
+          <Image
+            src={previewImage}
+            alt="Preview of the AMS dashboard"
+            width={640}
+            height={400}
+            className="h-auto w-full"
+            priority
+          />
+        </div>
 
-        <Button variant="outline" onClick={leave} className="w-full">
-          Continue to dashboard
-        </Button>
+        <Card className="w-full space-y-4 p-5 text-left">
+          {showNativeInstall ? (
+            // Always the button, never manual steps - if beforeinstallprompt hasn't
+            // landed yet (or this browser never fires it), handleInstallClick falls
+            // back to a toast instead of leaving the user with nothing to tap.
+            <Button onClick={handleInstallClick} disabled={installing} className="w-full">
+              {installing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Install App
+            </Button>
+          ) : (
+            // No install button here on purpose: unlike Chromium, Safari gives web
+            // pages no API to trigger "Add to Home Screen" - Apple requires it go
+            // through this exact manual flow, so these two steps are the entire
+            // install path on iOS.
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <Share className="mt-0.5 h-4 w-4 shrink-0" />
+                Tap the Share icon in Safari&apos;s toolbar
+              </li>
+              <li className="flex items-start gap-2">
+                <SquarePlus className="mt-0.5 h-4 w-4 shrink-0" />
+                Scroll down and select &quot;Add to Home Screen&quot;
+              </li>
+            </ol>
+          )}
+        </Card>
       </div>
     </div>
   );
