@@ -6,13 +6,16 @@ import Image from "next/image";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, Loader2, Share, SquarePlus } from "lucide-react";
+import { Download, ExternalLink, Loader2, Share, SquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import {
   clearDeferredInstallPrompt,
+  clearPwaInstalled,
   getDeferredInstallPrompt,
   isIOS,
+  isPwaInstalled,
   isRunningStandalone,
+  markPwaInstalled,
   markPwaPromptSeenToday,
 } from "@/lib/pwa";
 import type { UserRole } from "@/lib/types/UserTypes";
@@ -36,6 +39,10 @@ export default function PwaInstallPage() {
   const searchParams = useSearchParams();
   const { user, session, incompleteProfile, isLoading } = useAuth();
   const [installing, setInstalling] = useState(false);
+  // Defaults to "not installed" (i.e. the normal install offer) and flips true
+  // if the async check below says otherwise - see isPwaInstalled in lib/pwa.ts
+  // for why a plain browser tab can't tell this on its own.
+  const [alreadyInstalled, setAlreadyInstalled] = useState(false);
 
   const target = searchParams.get("r") || "/dashboard";
 
@@ -64,6 +71,20 @@ export default function PwaInstallPage() {
     }
   }, [isLoading, session, user, incompleteProfile, target, router]);
 
+  // Distinct from isRunningStandalone(): that's "am I inside the installed
+  // app's window right now"; this is "is the app installed somewhere, even
+  // though I'm looking at this in a regular browser tab". Chromium-only (see
+  // lib/pwa.ts) - on iOS/Firefox this resolves false and changes nothing.
+  useEffect(() => {
+    let cancelled = false;
+    isPwaInstalled().then((installed) => {
+      if (!cancelled) setAlreadyInstalled(installed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // beforeinstallprompt fires on Chromium generally - Android AND desktop
   // Chrome/Edge - so this is "everything except iOS Safari", not literally
   // "Android only". iOS is the one platform with no install API at all.
@@ -79,12 +100,40 @@ export default function PwaInstallPage() {
     setInstalling(true);
     try {
       await prompt.prompt();
-      await prompt.userChoice;
+      const choice = await prompt.userChoice;
+      // This is the one moment we know for certain, from the browser itself,
+      // that the install actually went through - record it ourselves rather
+      // than leaning on getInstalledRelatedApps() agreeing on the next visit.
+      if (choice.outcome === "accepted") {
+        markPwaInstalled();
+      }
     } finally {
       clearDeferredInstallPrompt();
       setInstalling(false);
       leave();
     }
+  };
+
+  // There's no JS API to force-focus a separately-installed PWA window from a
+  // browser tab (that's only possible for native-wrapped Trusted Web
+  // Activities, not a plain installed web app). A full navigation is the
+  // closest honest equivalent: it's what gives Chrome's own link-capturing a
+  // chance to hand off to the installed app; router.replace() never leaves
+  // the document, so the OS never gets that chance. Worst case if capturing
+  // isn't active, this just continues on in the browser tab - not broken,
+  // just not a guaranteed app switch.
+  const handleOpenApp = () => {
+    markPwaPromptSeenToday();
+    window.location.href = target;
+  };
+
+  // The escape hatch for the one thing this page can't detect on its own: no
+  // browser fires an event when its installed PWA gets removed later, so
+  // nothing here would ever notice and flip this back automatically. The
+  // visitor is the only one who can - this hands them a way to say so.
+  const handleNotInstalled = () => {
+    clearPwaInstalled();
+    setAlreadyInstalled(false);
   };
 
   if (isLoading || !user || incompleteProfile || isRunningStandalone()) {
@@ -136,17 +185,34 @@ export default function PwaInstallPage() {
 
         <Card className="w-full space-y-4 p-5 text-left">
           {showNativeInstall ? (
-            // Always the button, never manual steps - if beforeinstallprompt hasn't
-            // landed yet (or this browser never fires it), handleInstallClick falls
-            // back to a toast instead of leaving the user with nothing to tap.
-            <Button onClick={handleInstallClick} disabled={installing} className="w-full">
-              {installing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              Install App
-            </Button>
+            alreadyInstalled ? (
+              <div className="space-y-2">
+                <Button onClick={handleOpenApp} className="w-full">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open App
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleNotInstalled}
+                  className="w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
+                >
+                  Not installed anymore? Tap here to install again
+                </button>
+              </div>
+            ) : (
+              // Always the button, never manual steps - if beforeinstallprompt
+              // hasn't landed yet (or this browser never fires it),
+              // handleInstallClick falls back to a toast instead of leaving
+              // the user with nothing to tap.
+              <Button onClick={handleInstallClick} disabled={installing} className="w-full">
+                {installing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Install App
+              </Button>
+            )
           ) : (
             // No install button here on purpose: unlike Chromium, Safari gives web
             // pages no API to trigger "Add to Home Screen" - Apple requires it go
