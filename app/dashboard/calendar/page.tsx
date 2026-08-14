@@ -70,7 +70,7 @@ export default function CalendarPage() {
   return (
     <div className="flex h-full w-full flex-col gap-4 p-4 md:p-6 pb-20 md:pb-6">
       <div className="shrink-0">
-        <h1 className="text-lg font-semibold tracking-tight">Calendar</h1>
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Calendar</h1>
         <p className="text-sm text-muted-foreground">
           {ROLE_DESCRIPTION[user?.role ?? ""] ?? "Your activity at a glance."}
         </p>

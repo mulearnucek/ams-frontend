@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 // and HOD (department-scoped). Sub-routes (users, academics, config) stay
 // admin-only until they get their own HOD/principal-scoped views.
 const DASHBOARD_ROOT_ROLES: readonly string[] = ["admin", "principal", "hod"];
-const SUB_ROUTE_ROLES: readonly string[] = ["admin"];
+const SUB_ROUTE_ROLES: readonly string[] = ["admin","principal","hod"];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();

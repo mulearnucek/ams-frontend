@@ -8,6 +8,7 @@ import NotificationsList from "@/components/student/notifications-list";
 import { type SubjectAttendanceStats } from "@/lib/api/attendance-stats";
 import { getStoredReadIds, markNotificationRead, type NotificationRecord } from "@/lib/api/notification";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
@@ -203,9 +204,11 @@ export default function ParentDashboardPage() {
             <div className="text-left">
               <CardTitle className="text-2xl">{child.first_name} {child.last_name}</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">Viewing your child’s current progress and updates</p>
-              <div className="text-muted-foreground flex flex-wrap justify-start gap-1 mt-2 text-sm">
-                {// @ts-expect-error
-                child.profile?.candidate_code && <span>{child.profile.candidate_code}</span>}({child.profile?.department && child.profile.department})
+              <div className="text-muted-foreground flex flex-wrap items-center gap-2 mt-2 text-sm">
+                {/* @ts-expect-error */}
+                {child.profile?.candidate_code && <Badge variant="outline">{child.profile.candidate_code}</Badge>}
+                {/* @ts-expect-error */}
+                {child.profile?.department && <Badge variant="secondary">{child.profile.department}</Badge>}
               </div>
             </div>
           </CardHeader>

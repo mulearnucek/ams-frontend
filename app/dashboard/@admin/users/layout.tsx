@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import Loading from "@/app/loading";
 import { Loader2 } from "lucide-react";
 
-const ALLOWED_ROLES = ["admin"] as const;
+const ALLOWED_ROLES = ["admin", "hod", "principal"] as const;
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();

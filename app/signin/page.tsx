@@ -8,6 +8,7 @@ import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { FLAGS } from "@/lib/flags"
 import { useAuth } from "@/lib/auth-context"
+import { ThemeToggle } from "@/components/appshell/theme_toggle"
 
 const GOOGLE_SIGNIN_ERROR_MESSAGES: Record<string, string> = {
   account_not_linked: "This Google account isn't linked to any existing user. Contact your administrator to have your account set up first.",
@@ -28,6 +29,9 @@ export default function AuthenticationPage() {
   return (
     <>
       <div className="relative flex min-h-screen flex-col md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+        <div className="absolute right-4 top-4 z-30 rounded-full bg-background/70 shadow-sm backdrop-blur-sm lg:bg-transparent lg:shadow-none lg:backdrop-blur-none">
+          <ThemeToggle />
+        </div>
         <div className="relative flex h-[45vh] flex-col overflow-hidden bg-muted p-6 text-white lg:h-full lg:p-10 dark:border-r">
           <div 
             className="absolute inset-0 bg-cover bg-center scale-110 lg:scale-100" 

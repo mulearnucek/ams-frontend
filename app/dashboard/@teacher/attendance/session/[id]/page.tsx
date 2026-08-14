@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Check, X, Share2 } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Users, BookOpen, Hand, FileSpreadsheet, Check, X, Share2, Archive } from "lucide-react";
 import { format } from "date-fns";
 import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import { createBulkAttendanceRecords, updateBulkAttendanceRecords, type Attendan
 import type { User } from "@/lib/types/UserTypes";
 import CsvAttendanceDialog from "@/components/teacher/csv-attendance-dialog";
 import { ShareAttendanceDialog } from "../../share-attendance-dialog";
+import { toTitleCase } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -262,6 +263,8 @@ export default function SessionAttendanceMethodsPage() {
     );
   }
 
+  const isArchived = Boolean((session as any).archived);
+
   const getSessionTypeBadge = (type: string) => {
     const variants = {
       regular: "default",
@@ -293,13 +296,20 @@ export default function SessionAttendanceMethodsPage() {
 
       {/* toasts are shown via Sonner Toaster mounted in dashboard layout */}
 
+      {isArchived && (
+        <div className="flex items-center gap-2 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Archive className="h-4 w-4 shrink-0" />
+          Read-only. Attendance can no longer be edited for this sessions of past semesters.
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div className="space-y-3">
               <div>
                 <CardTitle className="text-xl md:text-2xl">{session.subject.name}</CardTitle>
-                <p className="text-muted-foreground mt-1">{session.subject.code}</p>
+                <p className="text-muted-foreground mt-1">{session.subject.subject_code}</p>
               </div>
               <Badge variant={getSessionTypeBadge(session.session_type)} className="w-fit">
                 {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
@@ -344,8 +354,8 @@ export default function SessionAttendanceMethodsPage() {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link href={`/dashboard/attendance/session/${sessionId}/swipe`} className="block">
-          <Card className="border-2 cursor-pointer hover:shadow-lg transition-shadow h-full">
+        {isArchived ? (
+          <Card className="border-2 h-full cursor-not-allowed opacity-50">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Hand className="h-5 w-5 text-primary" />
@@ -353,10 +363,25 @@ export default function SessionAttendanceMethodsPage() {
               </div>
             </CardHeader>
           </Card>
-        </Link>
+        ) : (
+          <Link href={`/dashboard/attendance/session/${sessionId}/swipe`} className="block">
+            <Card className="border-2 cursor-pointer hover:shadow-lg transition-shadow h-full">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Hand className="h-5 w-5 text-primary" />
+                  <CardTitle>Swipe Cards</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        )}
 
-        <button onClick={() => setCsvDialogOpen(true)} className="block text-left">
-          <Card className="border-2 cursor-pointer hover:shadow-lg transition-shadow h-full">
+        <button
+          onClick={() => !isArchived && setCsvDialogOpen(true)}
+          disabled={isArchived}
+          className="block text-left disabled:cursor-not-allowed"
+        >
+          <Card className={`border-2 h-full transition-shadow ${isArchived ? "opacity-50" : "cursor-pointer hover:shadow-lg"}`}>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -405,7 +430,7 @@ export default function SessionAttendanceMethodsPage() {
                 </p>
               </div>
               {!markMode ? (
-                <Button onClick={beginMarking} disabled={students.length === 0} className="sm:min-w-40">
+                <Button onClick={beginMarking} disabled={students.length === 0 || isArchived} className="sm:min-w-40">
                   Mark Attendance
                 </Button>
               ) : (
@@ -451,7 +476,7 @@ export default function SessionAttendanceMethodsPage() {
                       >
                         <span className="text-xs">{lastThreeDigits}</span>
                       </div>
-                      <p className="font-medium text-sm">{student.name}</p>
+                      <p className="font-medium text-sm">{toTitleCase(student.name)}</p>
                     </div>
                     {markMode && (
                       <div className="flex items-center gap-2 shrink-0">

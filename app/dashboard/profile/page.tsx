@@ -50,7 +50,7 @@ export default function ProfilePage() {
       <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <h1 className="text-2xl sm:text-3xl font-semibold">Profile</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
           <p className="text-sm text-muted-foreground">
             Manage your account information
           </p>

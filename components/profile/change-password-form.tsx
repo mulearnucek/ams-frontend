@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { Loader2, KeyRound } from "lucide-react";
+import { Loader2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,6 +43,26 @@ const changePasswordSchema = z
 
 type SetPasswordValues = z.infer<typeof setPasswordSchema>;
 type ChangePasswordValues = z.infer<typeof changePasswordSchema>;
+
+function PasswordInput({ className, ...props }: ComponentProps<typeof Input>) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <Input type={visible ? "text" : "password"} className={cn("pr-10", className)} {...props} />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
+        onClick={() => setVisible((prev) => !prev)}
+        aria-label={visible ? "Hide password" : "Show password"}
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </Button>
+    </div>
+  );
+}
 
 /**
  * Self-service password management. Users who signed in via Google only
@@ -116,7 +137,7 @@ function SetPasswordFields() {
             <FormItem>
               <FormLabel>New Password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" {...field} />
+                <PasswordInput autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -129,7 +150,7 @@ function SetPasswordFields() {
             <FormItem>
               <FormLabel>Confirm Password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" {...field} />
+                <PasswordInput autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -153,11 +174,14 @@ function ChangePasswordFields() {
 
   const onSubmit = async (values: ChangePasswordValues) => {
     try {
-      await authClient.changePassword({
+      const { error } = await authClient.changePassword({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
         revokeOtherSessions: true,
       });
+      if (error) {
+        throw new Error(error.message || "Failed to change password");
+      }
       toast.success("Password changed. You've been signed out of other sessions.");
       form.reset();
     } catch (err) {
@@ -175,7 +199,7 @@ function ChangePasswordFields() {
             <FormItem>
               <FormLabel>Current Password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="current-password" {...field} />
+                <PasswordInput autoComplete="current-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -188,7 +212,7 @@ function ChangePasswordFields() {
             <FormItem>
               <FormLabel>New Password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" {...field} />
+                <PasswordInput autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -201,7 +225,7 @@ function ChangePasswordFields() {
             <FormItem>
               <FormLabel>Confirm New Password</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="new-password" {...field} />
+                <PasswordInput autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

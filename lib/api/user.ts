@@ -19,6 +19,9 @@ export async function listUsers(params: ListUsersParams): Promise<ListUsersRespo
   if (params.limit) queryParams.append('limit', params.limit.toString());
   if (params.search) queryParams.append('search', params.search);
   if (params.batch) queryParams.append('batch', params.batch);
+  if (params.full) queryParams.append('full', 'true');
+  if ((params as any).sort) queryParams.append('sort', (params as any).sort);
+  if ((params as any).order) queryParams.append('order', (params as any).order);
 
     const response = await fetch(`${API_BASE}/user/list?${queryParams.toString()}`, {
       method: 'GET',
@@ -71,7 +74,7 @@ export async function getUserById(id: string): Promise<User> {
 /**
  * Update a user by ID (admin only)
  */
-export async function updateUserById(id: string, data: UpdateUserData): Promise<void> {
+export async function updateUserById(id: string, data: UpdateUserData): Promise<any> {
   const response = await fetch(`${API_BASE}/user/${id}`, {
     method: 'PUT',
     headers: {
@@ -81,10 +84,11 @@ export async function updateUserById(id: string, data: UpdateUserData): Promise<
     body: JSON.stringify(data),
   });
 
+  const result = await response.json();
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update user');
+    throw new Error(result.message || 'Failed to update user');
   }
+  return result;
 }
 
 /**

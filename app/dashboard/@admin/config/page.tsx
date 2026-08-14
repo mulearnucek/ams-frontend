@@ -440,11 +440,8 @@ export default function AdminConfigPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex-1">
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Settings2 className="h-6 w-6 text-primary" />
-                            System Config
-                        </h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
+                        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">System Config</h1>
+                        <p className="text-sm text-muted-foreground">
                             Manage application-wide configuration variables
                         </p>
                     </div>

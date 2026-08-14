@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
-import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { AuthProvider } from "@/lib/auth-context";
+import PwaListener from "@/components/pwa-listener";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,7 +47,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <PwaListener />
           <AuthProvider>
+            {/* The loading screen lives in app/loading.tsx, not here. Suspense owns
+                it so it is torn down the instant the segment is ready; a wrapper here
+                could only guess with a timer, and would double up with the fallback's
+                copy. */}
             {children}
           </AuthProvider>
         </ThemeProvider>

@@ -48,13 +48,6 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
   return (
     <>
       <div className="space-y-4">
-        <div>
-          <h2 className="text-2xl font-semibold">My Classes</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Click on a class to start a new session
-          </p>
-        </div>
-
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (

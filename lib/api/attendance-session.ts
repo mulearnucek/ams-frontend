@@ -28,15 +28,14 @@ export interface AttendanceSession {
   batch: {
     _id: string;
     name: string;
-    code: string;
-    year: number;
+    id?: string;
     adm_year?: number;
     department?: string;
+    sem?: string;
   };
   subject: {
     _id: string;
     name: string;
-    code: string;
     subject_code?: string;
     sem?: string;
     type?: string;
@@ -55,6 +54,8 @@ export interface AttendanceSession {
   end_time: string;
   hours_taken: number;
   session_type: SessionType;
+  sem: string;
+  archived: boolean;
   records: EmbeddedAttendanceRecord[];
   createdAt: string;
   updatedAt: string;
@@ -222,6 +223,7 @@ export interface UniqueSession {
     name: string;
     department: string;
     adm_year: number;
+    sem: string;
   };
   subject: {
     _id: string;

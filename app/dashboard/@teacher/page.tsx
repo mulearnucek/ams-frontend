@@ -10,7 +10,8 @@ import { listAttendanceSessions } from "@/lib/api/attendance-session";
 import { listAttendanceRecords } from "@/lib/api/attendance-record";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { getTeacherOverview, type TeacherAttendanceOverview as TeacherAttendanceCard } from "@/lib/api/attendance-stats";
 
@@ -30,6 +31,7 @@ export default function TeacherHome() {
     const [notifications, setNotifications] = useState<TeacherNotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [myClassesOpen, setMyClassesOpen] = useState(false);
 
     useEffect(() => {
         const loadTeacherDashboard = async () => {
@@ -124,7 +126,7 @@ export default function TeacherHome() {
                         type: "info",
                         postedBy: user.first_name || user.name || "Teacher",
                         postedAt: new Date(session.createdAt || session.start_time),
-                        targetClass: session.subject.code,
+                        targetClass: session.subject.subject_code,
                     }));
 
                 setAttendanceData(overviewData);
@@ -147,9 +149,6 @@ export default function TeacherHome() {
             {/* Greeting Header */}
             <GreetingHeader userName={user?.first_name || user?.name || "Teacher"} />
 
-            {/* My Classes Section - Quick Start */}
-            <MyClasses />
-
             {error && (
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -157,7 +156,23 @@ export default function TeacherHome() {
                 </Alert>
             )}
 
-            {/* Main Grid Layout */}
+            {/* Recent Sessions / Quick Start - collapsed by default */}
+            <Collapsible open={myClassesOpen} onOpenChange={setMyClassesOpen}>
+                <CollapsibleTrigger asChild>
+                    <button className="flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50">
+                        <div>
+                            <h2 className="text-base font-semibold">My Classes</h2>
+                            <p className="text-sm text-muted-foreground">Recent sessions — click to start a new one</p>
+                        </div>
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${myClassesOpen ? "rotate-180" : ""}`} />
+                    </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
+                    <MyClasses />
+                </CollapsibleContent>
+            </Collapsible>
+
+            {/* Main Grid Layout - shown first so teachers see their overview right away */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Analytics */}
                 <div className="space-y-6">

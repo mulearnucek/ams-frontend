@@ -30,6 +30,31 @@ export type ListNotificationsResponse = {
   notifications: NotificationRecord[];
 };
 
+export type NotificationPagination = {
+  currentPage: number;
+  totalPages: number;
+  totalNotifications: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
+export type ListAllNotificationsResponse = {
+  notifications: NotificationRecord[];
+  pagination: NotificationPagination;
+};
+
+export type ListAllNotificationsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  targetGroup?: string;
+  notificationType?: string;
+  priorityLevel?: string;
+  sort?: "createdAt" | "title" | "priorityLevel";
+  order?: "asc" | "desc";
+};
+
 export type CreateNotificationPayload = {
   targetGroup: string;
   targetID?: string;
@@ -136,6 +161,43 @@ export async function listMyNotifications(page = 1, limit = 10): Promise<Notific
   return Array.isArray(notifications) ? notifications : [];
 }
 
+export async function listAllNotifications(
+  params: ListAllNotificationsParams = {}
+): Promise<ListAllNotificationsResponse> {
+  const queryParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") queryParams.append(key, String(value));
+  });
+
+  const url = `${API_BASE}/notifications/all${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Failed to fetch notifications");
+    throw new Error(message);
+  }
+
+  const result = (await parseJsonSafe(response)) as ApiResponse<ListAllNotificationsResponse> | null;
+  return {
+    notifications: Array.isArray(result?.data?.notifications) ? result!.data.notifications : [],
+    pagination:
+      result?.data?.pagination || {
+        currentPage: params.page || 1,
+        totalPages: 1,
+        totalNotifications: 0,
+        limit: params.limit || 10,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+  };
+}
+
 export async function createNotification(payload: CreateNotificationPayload): Promise<void> {
   const response = await fetch(`${API_BASE}/notifications`, {
     method: "POST",
@@ -180,9 +242,10 @@ export async function deleteNotification(id: string): Promise<void> {
   }
 }
 
-export async function getUnreadCount(userId?: string): Promise<number> {
+export async function getUnreadCount(userId?: string, role?: string): Promise<number> {
   loadReadIdsFromStorage(userId);
-  const notifications = await listMyNotifications();
+  const notifications =
+    role === "admin" ? (await listAllNotifications({ limit: 100 })).notifications : await listMyNotifications();
   const readSet = getReadSet(userId);
   const unread = notifications.filter((notification) => {
     const id = notification._id || notification.id;

@@ -12,6 +12,7 @@ import { getAttendanceSessionById, type AttendanceSession, type EmbeddedAttendan
 import { createBulkAttendanceRecords, updateAttendanceRecordById, type AttendanceStatus } from "@/lib/api/attendance-record";
 import { listUsers, type User } from "@/lib/api/user";
 import { toast } from "sonner";
+import { toTitleCase } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -237,7 +238,7 @@ export default function TickAttendancePage() {
             <div className="space-y-3">
               <div>
                 <CardTitle className="text-xl md:text-2xl">{session.subject.name}</CardTitle>
-                <p className="text-muted-foreground mt-1">{session.subject.code}</p>
+                <p className="text-muted-foreground mt-1">{session.subject.subject_code}</p>
               </div>
               <Badge variant={getSessionTypeBadge(session.session_type)} className="w-fit">
                 {session.session_type.charAt(0).toUpperCase() + session.session_type.slice(1)}
@@ -347,7 +348,7 @@ export default function TickAttendancePage() {
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary">
                         <span className="text-xs font-semibold text-primary">{lastThreeDigits}</span>
                       </div>
-                      <p className="font-semibold">{student.name}</p>
+                      <p className="font-semibold">{toTitleCase(student.name)}</p>
                     </div>
                     {markMode && (
                       <div className="flex items-center gap-2">

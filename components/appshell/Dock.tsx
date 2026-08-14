@@ -169,12 +169,12 @@ export default function Dock({
 
   const refreshUnreadCount = useCallback(async () => {
     try {
-      const count = await getUnreadCount(userId);
+      const count = await getUnreadCount(userId, user?.role);
       setUnreadCount(count);
     } catch {
       setUnreadCount(0);
     }
-  }, [userId]);
+  }, [userId, user?.role]);
 
   // Fetch unread notification count once when the app loads or user logs in
   useEffect(() => {

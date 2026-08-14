@@ -5,12 +5,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { updateUserById } from "@/lib/api/user";
+import { getUserById, updateUserById } from "@/lib/api/user";
 import { User, UpdateUserData } from "@/lib/types/UserTypes";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -55,13 +58,13 @@ const userFormSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name:  z.string().min(1, "Last name is required"),
   phone:      z.number().optional(),
-  gender:     z.enum(["male", "female", "other"] as const).optional(),
+  gender:     z.enum(["male", "female", "other"] as const).optional().or(z.literal(undefined)),
 
   // Student profile fields
   adm_number:     z.string().optional(),
   adm_year:       z.number().optional(),
   candidate_code: z.string().optional(),
-  department:     z.enum(["CSE", "ECE", "IT"] as const).optional(),
+  department:     z.enum(["CSE", "ECE", "IT"] as const).optional().or(z.literal(undefined)),
   date_of_birth:  z.string().optional(),
 
   // Staff profile fields
@@ -72,7 +75,6 @@ const userFormSchema = z.object({
   relation: z.enum(["mother", "father", "guardian"] as const).optional(),
   child_candidate_code: z.string().optional(),
 });
-
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserDialogProps {
@@ -100,16 +102,41 @@ export function UserDialog({
   const [isUnbanning, setIsUnbanning] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [childDialogOpen, setChildDialogOpen] = useState(false);
+  const [fullUser, setFullUser] = useState<User>(user);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
   useEffect(() => {
     setIsEditing(initialMode === "edit");
   }, [initialMode, open]);
 
+  useEffect(() => {
+    if (!open) return;
+    setFullUser(user);
+    let cancelled = false;
+    (async () => {
+      try {
+        setIsLoadingDetail(true);
+        const detail = await getUserById(user._id);
+        if (!cancelled) setFullUser(detail);
+      } catch (err) {
+        if (!cancelled) toast.error(err instanceof Error ? err.message : "Failed to load user details");
+      } finally {
+        if (!cancelled) setIsLoadingDetail(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Keyed on the row's identity (open + id), not the `user` object reference itself —
+    // re-fetching on every parent re-render (e.g. table re-sort) would be wasteful.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, user._id]);
+
   const handleUnban = async () => {
     try {
       setIsUnbanning(true);
-      await authClient.admin.unbanUser({ userId: user._id });
-      toast.success(`${user.name} has been unbanned.`);
+      await authClient.admin.unbanUser({ userId: fullUser._id });
+      toast.success(`${fullUser.name} has been unbanned.`);
       onSuccess?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to unban user");
@@ -121,8 +148,8 @@ export function UserDialog({
   const handleRevokeSessions = async () => {
     try {
       setIsRevoking(true);
-      await authClient.admin.revokeUserSessions({ userId: user._id });
-      toast.success(`All sessions for ${user.name} have been revoked.`);
+      await authClient.admin.revokeUserSessions({ userId: fullUser._id });
+      toast.success(`All sessions for ${fullUser.name} have been revoked.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to revoke sessions");
     } finally {
@@ -149,20 +176,20 @@ export function UserDialog({
     },
   });
 
-  // Populate form from user.profile when dialog opens or mode switches
+  // Populate form from fullUser.profile once the full detail fetch resolves
   useEffect(() => {
-    if (user && open) {
-      const p = (user.profile ?? {}) as any;
+    if (fullUser && open) {
+      const p = (fullUser.profile ?? {}) as any;
       form.reset({
-        first_name: user.first_name ?? "",
-        last_name:  user.last_name  ?? "",
-        phone:      user.phone,
-        gender:     user.gender,
+        first_name: fullUser.first_name ?? "",
+        last_name:  fullUser.last_name  ?? "",
+        phone:      fullUser.phone,
+        gender:     fullUser.gender,
 
         // Student fields (from profile)
         adm_number:     p.adm_number     ?? "",
         adm_year:       p.adm_year,
-        candidate_code: p.candidate_code ?? "",
+        candidate_code: user.role === 'parent' ? p.child?.profile?.candidate_code ?? "" : p.candidate_code ?? "",
         department:     p.department,
         date_of_birth:  p.date_of_birth
           ? new Date(p.date_of_birth).toISOString().split("T")[0]
@@ -179,7 +206,7 @@ export function UserDialog({
         child_candidate_code: p.child?.profile?.candidate_code ?? "",
       });
     }
-  }, [user, open, isEditing, form]);
+  }, [fullUser, open, isEditing, form]);
 
   const onSubmit = async (data: UserFormValues) => {
     try {
@@ -193,7 +220,7 @@ export function UserDialog({
         gender:     data.gender,
       };
 
-      const role = user.role;
+      const role = fullUser.role;
 
       // Build profile sub-object based on role
       const profile: UpdateUserData["profile"] = {};
@@ -217,7 +244,14 @@ export function UserDialog({
         updateData.profile = profile;
       }
 
-      await updateUserById(user._id, updateData);
+      const response = await updateUserById(fullUser._id, updateData);
+
+      if (role === 'parent' && response.data?.child_name) {
+        toast.success(`User updated. Child "${response.data.child_name}" linked successfully.`);
+      } else {
+        toast.success("User updated successfully.");
+      }
+
       if (onSuccess) onSuccess();
       setIsEditing(false);
     } catch (err) {
@@ -244,14 +278,14 @@ export function UserDialog({
     }
   };
 
-  const role = user.role;
+  const role = fullUser.role;
   const isStudent = role === "student";
   const isParent  = role === "parent";
   const isStaff   = ["teacher", "hod", "principal", "staff"].includes(role);
 
   // Read from profile for completeness checks
-  const p = (user.profile ?? {}) as any;
-  const hasBasicProfile   = Boolean(user.first_name && user.last_name);
+  const p = (fullUser.profile ?? {}) as any;
+  const hasBasicProfile   = Boolean(fullUser.first_name && fullUser.last_name);
   const hasStudentProfile = !isStudent ? true : Boolean(p.batch && p.adm_number && p.adm_year && p.department && p.date_of_birth);
   const hasStaffProfile   = !isStaff   ? true : Boolean(p.designation && p.department && p.date_of_joining);
   const hasParentProfile  = !isParent  ? true : Boolean(p.relation && p.child);
@@ -279,6 +313,12 @@ export function UserDialog({
           "[&>button]:hidden"
         )}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>User Details: {fullUser.name}</DialogTitle>
+          <DialogDescription>
+            View, edit, and manage user details and profile information.
+          </DialogDescription>
+        </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 flex-1 overflow-hidden">
@@ -288,28 +328,33 @@ export function UserDialog({
                 <div className="relative flex flex-col items-center text-center p-6 border rounded-lg bg-muted/30">
 
                   <Avatar className="h-32 w-32 mb-4">
-                    <AvatarImage src={user.image} alt={user.name} />
-                    <AvatarFallback className="text-2xl">{getInitials(user.name)}</AvatarFallback>
+                    <AvatarImage src={fullUser.image} alt={fullUser.name} />
+                    <AvatarFallback className="text-2xl">{getInitials(fullUser.name)}</AvatarFallback>
                   </Avatar>
-                  <h3 className="text-2xl font-semibold mb-1">{user.name}</h3>
+                  <h3 className="text-2xl font-semibold mb-1">{fullUser.name}</h3>
                   <div
                     className="group relative flex items-center gap-2 cursor-pointer hover:bg-muted/50 px-2 py-1 round transition-colors"
-                    onClick={() => navigator.clipboard.writeText(user.email)}
+                    onClick={() => navigator.clipboard.writeText(fullUser.email)}
                     title="Click to copy email"
                   >
-                    <p className="text-muted-foreground break-all text-sm">{user.email}</p>
+                    <p className="text-muted-foreground break-all text-sm">{fullUser.email}</p>
                   </div>
                   <Badge variant="outline" className="mt-3 text-md px-4 py-1 capitalize">
-                    {user.role}
+                    {fullUser.role}
                   </Badge>
+                  {isLoadingDetail && (
+                    <Badge variant="outline" className="mt-2 gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Loading details…
+                    </Badge>
+                  )}
                   {isProfileIncomplete && (
                     <Badge variant="secondary" className="mt-2">
                       Profile Incomplete
                     </Badge>
                   )}
-                  {user.banned && (
+                  {fullUser.banned && (
                     <Badge variant="destructive" className="mt-2">
-                      Banned{user.banReason ? `: ${user.banReason}` : ""}
+                      Banned{fullUser.banReason ? `: ${fullUser.banReason}` : ""}
                     </Badge>
                   )}
                 </div>
@@ -320,9 +365,9 @@ export function UserDialog({
                     Account Meta
                   </h4>
                   <div className="space-y-2 text-sm">
-                    <InfoItem label="User ID"    value={user._id} />
-                    <InfoItem label="Created At" value={formatDate(user.createdAt)} />
-                    <InfoItem label="Updated At" value={formatDate(user.updatedAt)} />
+                    <InfoItem label="User ID"    value={fullUser._id} />
+                    <InfoItem label="Created At" value={formatDate(fullUser.createdAt)} />
+                    <InfoItem label="Updated At" value={formatDate(fullUser.updatedAt)} />
                   </div>
                 </div>
 
@@ -334,6 +379,7 @@ export function UserDialog({
                       className="w-full"
                       onClick={() => setIsEditing(true)}
                       type="button"
+                      disabled={isLoadingDetail}
                     >
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit User
@@ -348,7 +394,7 @@ export function UserDialog({
                       Reset Password
                     </Button>
 
-                    {user.banned ? (
+                    {fullUser.banned ? (
                       <Button
                         variant="outline"
                         className="w-full"
@@ -390,7 +436,7 @@ export function UserDialog({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Revoke all sessions?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            <span className="font-medium">{user.name}</span> will be signed out of every
+                            <span className="font-medium">{fullUser.name}</span> will be signed out of every
                             device immediately and need to sign in again.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
@@ -484,12 +530,12 @@ export function UserDialog({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                      <InfoItem label="First Name"     value={user.first_name} />
-                      <InfoItem label="Last Name"      value={user.last_name} />
-                      <InfoItem label="Email"          value={user.email} />
-                      <InfoItem label="Phone"          value={user.phone?.toString()} />
-                      <InfoItem label="Gender"         value={user.gender} />
-                      <InfoItem label="Email Verified" value={user.emailVerified ? "Yes" : "No"} />
+                      <InfoItem label="First Name"     value={fullUser.first_name} />
+                      <InfoItem label="Last Name"      value={fullUser.last_name} />
+                      <InfoItem label="Email"          value={fullUser.email} />
+                      <InfoItem label="Phone"          value={fullUser.phone?.toString()} />
+                      <InfoItem label="Gender"         value={fullUser.gender} />
+                      <InfoItem label="Email Verified" value={fullUser.emailVerified ? "Yes" : "No"} />
                     </div>
                   )}
                 </div>
@@ -770,15 +816,15 @@ export function UserDialog({
       </DialogContent>
 
       <ResetPasswordDialog
-        userId={user._id}
-        userName={user.name}
+        userId={fullUser._id}
+        userName={fullUser.name}
         open={resetPasswordOpen}
         onOpenChange={setResetPasswordOpen}
       />
 
       <BanUserDialog
-        userId={user._id}
-        userName={user.name}
+        userId={fullUser._id}
+        userName={fullUser.name}
         open={banDialogOpen}
         onOpenChange={setBanDialogOpen}
         onSuccess={onSuccess}
