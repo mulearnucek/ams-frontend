@@ -664,7 +664,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
                   placeholder="e.g., 2026-2030 or IT"
                   value={formData.batch}
                   displayValue={locked.batch ? (batchName || formData.batch) : undefined}
-                  error={errors.batch}
+              error={errors.batch}
                   disabled={locked.batch}
                   onChange={handleInputEvent}
                 />

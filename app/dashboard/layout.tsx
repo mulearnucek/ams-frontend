@@ -40,6 +40,7 @@ export default function DashboardLayout({
   const { user, isLoading, session, incompleteProfile, config } = useAuth();
   const isSharedRoute = SHARED_ROUTES.some((r) => pathname.startsWith(r));
   const notificationsEnabled = Boolean(config[FLAGS.NOTIFICATIONS]);
+
   const pwaCheckRef = useRef(false);
   const [pwaCheckDone, setPwaCheckDone] = useState(false);
   const calendarEnabled = config[FLAGS.CALENDAR] !== false;
