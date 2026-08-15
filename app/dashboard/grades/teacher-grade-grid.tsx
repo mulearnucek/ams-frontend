@@ -556,27 +556,7 @@ export function TeacherGradeGrid() {
                     <div className="flex flex-col gap-2 p-3">
                       <div className="flex items-center gap-1.5">
                         <span className="font-semibold leading-none">{field.name}</span>
-                        <span title={field.published ? "Published" : "Draft"}>
-                          {field.published ? (
-                            <Eye className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground capitalize leading-none">
-                          {field.type}
-                        </span>
-                        {field.type === "moderation" ? (
-                          <span className="text-xs font-medium text-muted-foreground leading-none">
-                            {field.value}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium text-muted-foreground leading-none">
-                            / {field.total_mark}
-                          </span>
-                        )}
+                        <span className="font-light">({field.type === "moderation" ? field.value : `${field.total_mark}`})</span>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <button
@@ -585,8 +565,8 @@ export function TeacherGradeGrid() {
                           disabled={togglingPublishId === field._id}
                           className={
                             field.published
-                              ? "text-green-600 hover:text-green-700 dark:text-green-400"
-                              : "text-muted-foreground hover:text-foreground"
+                              ? "text-green-600 hover:text-green-700 cursor-pointer dark:text-green-400"
+                              : "text-muted-foreground hover:text-foreground cursor-pointer"
                           }
                           title={field.published ? "Published, click to unpublish" : "Draft, click to publish"}
                         >
@@ -596,7 +576,7 @@ export function TeacherGradeGrid() {
                           <button
                             type="button"
                             onClick={() => setSyncFieldTarget(field)}
-                            className="text-muted-foreground hover:text-foreground"
+                            className="text-muted-foreground hover:text-foreground cursor-pointer"
                             title="Refresh from attendance records"
                           >
                             <RefreshCw className="h-4.5 w-4.5" />
@@ -606,7 +586,7 @@ export function TeacherGradeGrid() {
                           <button
                             type="button"
                             onClick={() => setEditFieldTarget(field)}
-                            className="text-muted-foreground hover:text-foreground"
+                            className="text-muted-foreground hover:text-foreground cursor-pointer"
                             title="Edit grade field"
                           >
                             <Pencil className="h-4.5 w-4.5" />
@@ -616,7 +596,7 @@ export function TeacherGradeGrid() {
                           <button
                             type="button"
                             onClick={() => setDeleteFieldTarget(field)}
-                            className="text-muted-foreground hover:text-destructive"
+                            className="text-muted-foreground hover:text-destructive cursor-pointer"
                             title="Delete grade field"
                           >
                             <Trash2 className="h-4.5 w-4.5" />
