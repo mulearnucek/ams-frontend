@@ -22,6 +22,7 @@ import { listUsers } from "@/lib/api/user";
 import { User } from "@/lib/types/UserTypes";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { TeacherCombobox } from "./teacher-combobox";
 
 interface ShareAccessDialogProps {
   open: boolean;
@@ -160,7 +161,6 @@ export function ShareAccessDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
             Share Grade Sheet
           </DialogTitle>
           <DialogDescription>
@@ -191,8 +191,7 @@ export function ShareAccessDialog({
                 </>
               ) : (
                 <>
-                  <Copy className="h-3.5 w-3.5 mr-1" />
-                  Copy
+                  <Copy className="h-3.5 w-3.5" />
                 </>
               )}
             </Button>
@@ -212,23 +211,13 @@ export function ShareAccessDialog({
             Add Collaborator
           </Label>
           <div className="flex items-center gap-2">
-            <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder={loadingTeachers ? "Loading teachers..." : "Select teacher..."} />
-              </SelectTrigger>
-              <SelectContent className="max-h-56">
-                {availableTeachers.map((t) => (
-                  <SelectItem key={t._id} value={t._id}>
-                    {t.name || `${t.first_name} ${t.last_name}`}
-                  </SelectItem>
-                ))}
-                {availableTeachers.length === 0 && (
-                  <div className="py-2 px-3 text-xs text-muted-foreground">
-                    No additional teachers available
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
+            <TeacherCombobox
+              teachers={availableTeachers}
+              value={selectedTeacherId}
+              onChange={setSelectedTeacherId}
+              loading={loadingTeachers}
+              placeholder="Select teacher..."
+            />
 
             <Select value={selectedAccess} onValueChange={(val: "view" | "edit") => setSelectedAccess(val)}>
               <SelectTrigger className="w-28 shrink-0">

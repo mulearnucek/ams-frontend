@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "@/lib/auth-context";
@@ -26,7 +27,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Download } from "lucide-react";
+import { AlertCircle, ArrowLeft, Download, GraduationCap, School, Users } from "lucide-react";
 
 function thresholdClass(total: number, max: number): string {
   if (total === 0) return "text-muted-foreground";
@@ -41,6 +42,7 @@ type SortState = { key: string; dir: "asc" | "desc" } | null;
 
 export default function SemesterGradeReportPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [summary, setSummary] = useState<GradeSummary | null>(null);
@@ -152,50 +154,111 @@ export default function SemesterGradeReportPage() {
 
   if (batches.length === 0) {
     return (
-      <div className="p-4 md:p-6">
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
+      <div className="p-4 md:p-6 max-w-xl mx-auto space-y-4 pt-12">
+        <div className="rounded-xl border p-6 text-center space-y-3 bg-muted/20">
+          <GraduationCap className="h-10 w-10 text-muted-foreground mx-auto" />
+          <h2 className="text-lg font-semibold">Semester Report Not Available</h2>
+          <p className="text-sm text-muted-foreground">
             {user?.role === "teacher"
-              ? "No class assigned as staff advisor."
-              : "No batches found in your scope."}
-          </AlertDescription>
-        </Alert>
+              ? "You are not assigned as a staff advisor for any class. Semester grade reports are exclusively available to staff advisors for their assigned class, department HODs, and administrators."
+              : "No batches were found in your access scope."}
+          </p>
+          <div className="pt-2">
+            <Button variant="default" size="sm" onClick={() => router.push("/dashboard/grades")}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Grade Sheets
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
-  const isSoleBatch = batches.length === 1 && user?.role === "teacher";
+  const currentBatch = batches.find((b) => b._id === selectedBatchId) ?? batches[0];
+  const isTeacher = user?.role === "teacher";
 
   return (
-    <div className="p-4 md:p-6 pb-20 md:pb-6 space-y-4">
+    <div className="p-4 md:p-6 pb-20 md:pb-6 space-y-5">
       <div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-2 -ml-2 text-muted-foreground hover:text-foreground h-8 px-2"
+          onClick={() => router.push("/dashboard/grades")}
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Grade Sheets
+        </Button>
         <h1 className="text-2xl font-bold tracking-tight">Semester Grade Report</h1>
         <p className="text-sm text-muted-foreground">
-          Capped internal marks per subject, one row per student.
+          {isTeacher
+            ? `Capped internal marks report for your advised class: ${currentBatch?.name}`
+            : "Capped internal marks per subject, one row per student."}
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
-        <div className="max-w-sm flex-1">
-          {isSoleBatch ? (
-            <div className="text-sm font-medium">Your Class: {batches[0].name}</div>
+      {/* Class Details Bar */}
+      <div className="flex flex-col md:flex-row md:items-center gap-3 justify-between p-3.5 rounded-lg border bg-muted/20">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {isTeacher ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">Class:</span>
+              <span className="text-sm font-semibold text-foreground px-2 py-0.5 rounded bg-background border">
+                {currentBatch?.name}
+              </span>
+              {batches.length > 1 && (
+                <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
+                  <SelectTrigger className="h-7 text-xs w-36">
+                    <SelectValue placeholder="Switch class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {batches.map((b) => (
+                      <SelectItem key={b._id} value={b._id} className="text-xs">
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           ) : (
-            <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select batch" />
-              </SelectTrigger>
-              <SelectContent>
-                {batches.map((b) => (
-                  <SelectItem key={b._id} value={b._id}>
-                    {b.name} ({b.department}, {b.adm_year})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-64">
+              <Select value={selectedBatchId} onValueChange={setSelectedBatchId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select batch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {batches.map((b) => (
+                    <SelectItem key={b._id} value={b._id} className="text-xs">
+                      {b.name} ({b.department}, {b.adm_year})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {currentBatch?.department && (
+            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+              {currentBatch.department}
+            </span>
+          )}
+          {currentBatch?.adm_year && (
+            <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+              Batch {currentBatch.adm_year}
+            </span>
+          )}
+          {currentBatch?.sem && (
+            <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+              Sem {currentBatch.sem}
+            </span>
+          )}
+          {summary && (
+            <span className="text-xs text-muted-foreground ml-1">
+              • {summary.students.length} Students • {summary.subjects.length} Subjects
+            </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!summary}>
+
+        <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!summary} className="shrink-0 h-8">
           <Download className="mr-2 h-4 w-4" /> Export PDF
         </Button>
       </div>

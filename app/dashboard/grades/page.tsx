@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { ParentProfile } from "@/lib/types/UserTypes";
 import { GradeSheet } from "@/lib/types/GradeTypes";
 import { listGradeSheets, updateGradeSheet, deleteGradeSheet } from "@/lib/api/grade-sheet";
+import { listBatches } from "@/lib/api/batch";
 import { StudentGradeView } from "./student-grade-view";
 import { CreateGradeSheetDialog } from "./create-grade-sheet-dialog";
 import { ShareAccessDialog } from "./share-access-dialog";
@@ -73,6 +74,28 @@ export default function GradesPage() {
     user?.role === "admin" ||
     user?.role === "principal" ||
     user?.role === "staff";
+
+  const [isStaffAdvisor, setIsStaffAdvisor] = useState(false);
+
+  useEffect(() => {
+    if (user?.role === "teacher" && user?._id) {
+      listBatches({ staff_advisor: user._id, limit: 1 })
+        .then((data) => {
+          setIsStaffAdvisor((data?.batches?.length ?? 0) > 0);
+        })
+        .catch(() => {
+          setIsStaffAdvisor(false);
+        });
+    } else {
+      setIsStaffAdvisor(false);
+    }
+  }, [user]);
+
+  const canViewSemesterReport =
+    user?.role === "admin" ||
+    user?.role === "principal" ||
+    user?.role === "hod" ||
+    (user?.role === "teacher" && isStaffAdvisor);
 
   const fetchSheets = async () => {
     try {
@@ -202,9 +225,11 @@ export default function GradesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/grades/report")}>
-            <GraduationCap className="mr-2 h-4 w-4" /> Semester Report
-          </Button>
+          {canViewSemesterReport && (
+            <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/grades/report")}>
+              <GraduationCap className="mr-2 h-4 w-4" /> Semester Report
+            </Button>
+          )}
           <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Create Grade Sheet
           </Button>
