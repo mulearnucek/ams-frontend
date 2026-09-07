@@ -114,17 +114,35 @@ function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
 
 const cellKey = (studentId: string, fieldId: string) => `${studentId}::${fieldId}`;
 
-export function TeacherGradeGrid() {
+export interface TeacherGradeGridProps {
+  sheetId?: string;
+  initialBatchId?: string;
+  initialSubjectId?: string;
+  readOnly?: boolean;
+  batchName?: string;
+  subjectName?: string;
+  subjectCode?: string;
+}
+
+export function TeacherGradeGrid({
+  sheetId,
+  initialBatchId,
+  initialSubjectId,
+  readOnly = false,
+  batchName,
+  subjectName,
+  subjectCode,
+}: TeacherGradeGridProps = {}) {
   const [sessions, setSessions] = useState<UniqueSession[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | "">("");
-  const [selectedBatchId, setSelectedBatchId] = useState<string>("");
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [selectedBatchId, setSelectedBatchId] = useState<string>(initialBatchId || "");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(initialSubjectId || "");
 
   const [matrix, setMatrix] = useState<GradeMatrix | null>(null);
   const [baseline, setBaseline] = useState<GridState>({});
   const [draft, setDraft] = useState<GridState>({});
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(!sheetId);
   const [isLoadingMatrix, setIsLoadingMatrix] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +180,7 @@ export function TeacherGradeGrid() {
   );
 
   useEffect(() => {
+    if (sheetId) return;
     (async () => {
       try {
         setIsLoadingSessions(true);
@@ -178,7 +197,7 @@ export function TeacherGradeGrid() {
         setIsLoadingSessions(false);
       }
     })();
-  }, []);
+  }, [sheetId]);
 
   const handleYearChange = (value: string) => {
     const year = Number(value);
@@ -214,11 +233,14 @@ export function TeacherGradeGrid() {
   };
 
   const loadMatrix = useCallback(async () => {
-    if (!selectedSession) return;
+    const activeBatch = selectedBatchId || initialBatchId;
+    const activeSubject = selectedSubjectId || initialSubjectId;
+    if (!sheetId && (!activeBatch || !activeSubject)) return;
+
     try {
       setIsLoadingMatrix(true);
       setError(null);
-      const data = await getGradeMatrix(selectedSession.batch._id, selectedSession.subject._id);
+      const data = await getGradeMatrix(activeBatch || undefined, activeSubject || undefined, sheetId);
       setMatrix(data);
       const base = buildBaseline(data);
       setBaseline(base);
@@ -229,7 +251,7 @@ export function TeacherGradeGrid() {
     } finally {
       setIsLoadingMatrix(false);
     }
-  }, [selectedSession]);
+  }, [sheetId, selectedBatchId, selectedSubjectId, initialBatchId, initialSubjectId]);
 
   useEffect(() => {
     loadMatrix();
@@ -391,10 +413,14 @@ export function TeacherGradeGrid() {
   }
 
   const handleExportPdf = () => {
-    if (!matrix || !selectedSession) return;
+    if (!matrix) return;
     const doc = new jsPDF({ orientation: "landscape" });
+    const bName = batchName || selectedSession?.batch?.name || matrix.gradeFields[0]?.batch?.name || "Class";
+    const sName = subjectName || selectedSession?.subject?.name || matrix.gradeFields[0]?.subject?.name || "Subject";
+    const sCode = subjectCode || selectedSession?.subject?.subject_code || matrix.gradeFields[0]?.subject?.subject_code || "";
+
     doc.setFontSize(14);
-    doc.text(`${selectedSession.subject.name} — ${selectedSession.batch.name}`, 14, 16);
+    doc.text(`${sName} ${sCode ? `(${sCode})` : ""} — ${bName}`, 14, 16);
     doc.setFontSize(10);
     doc.text(`Generated ${new Date().toLocaleString()}`, 14, 22);
 
@@ -434,14 +460,14 @@ export function TeacherGradeGrid() {
       ]),
     });
 
-    doc.save(`${selectedSession.subject.subject_code}-${selectedSession.batch.name}-grades.pdf`);
+    doc.save(`${sCode || "grades"}-${bName}-grades.pdf`);
   };
 
-  if (isLoadingSessions) {
+  if (!sheetId && isLoadingSessions) {
     return <Skeleton className="h-96 w-full" />;
   }
 
-  if (sessions.length === 0) {
+  if (!sheetId && sessions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[520px] w-full rounded-2xl border border-dashed border-border bg-muted/30 py-20 px-6 text-center gap-6">
         {/* Large decorative icon */}
@@ -464,77 +490,85 @@ export function TeacherGradeGrid() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:justify-between">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-xl">
-          <Select value={selectedYear === "" ? "" : String(selectedYear)} onValueChange={handleYearChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Admission Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {years.map((year) => (
-                <SelectItem key={year} value={String(year)}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {!sheetId ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 flex-1 max-w-xl">
+            <Select value={selectedYear === "" ? "" : String(selectedYear)} onValueChange={handleYearChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Admission Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {years.map((year) => (
+                  <SelectItem key={year} value={String(year)}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={selectedBatchId} onValueChange={handleBatchChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Class" />
-            </SelectTrigger>
-            <SelectContent>
-              {classOptions.map((b) => (
-                <SelectItem key={b._id} value={b._id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={selectedBatchId} onValueChange={handleBatchChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Class" />
+              </SelectTrigger>
+              <SelectContent>
+                {classOptions.map((b) => (
+                  <SelectItem key={b._id} value={b._id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Subject" />
-            </SelectTrigger>
-            <SelectContent>
-              {subjectOptions.map((sub) => (
-                <SelectItem key={sub._id} value={sub._id}>
-                  {sub.name} ({sub.subject_code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {subjectOptions.map((sub) => (
+                  <SelectItem key={sub._id} value={sub._id}>
+                    {sub.name} ({sub.subject_code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div />
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={!matrix}>
             <Download className="mr-2 h-4 w-4" /> Export PDF
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAddFieldOpen(true)}
-            disabled={!selectedSession}
-            className="hidden sm:inline-flex"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Field
-          </Button>
-          {!isEditMode ? (
-            matrix &&
-            matrix.gradeFields.length > 0 && (
-              <Button size="sm" onClick={() => setIsEditMode(true)} className="hidden sm:inline-flex">
-                <Pencil className="mr-2 h-4 w-4" /> Edit
-              </Button>
+          {!readOnly && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAddFieldOpen(true)}
+              disabled={!sheetId && !selectedSession}
+              className="hidden sm:inline-flex"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Field
+            </Button>
+          )}
+          {!readOnly && (
+            !isEditMode ? (
+              matrix &&
+              matrix.gradeFields.length > 0 && (
+                <Button size="sm" onClick={() => setIsEditMode(true)} className="hidden sm:inline-flex">
+                  <Pencil className="mr-2 h-4 w-4" /> Edit
+                </Button>
+              )
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isSaving}>
+                  <X className="mr-2 h-4 w-4" /> Cancel
+                </Button>
+                <Button size="sm" onClick={handleSave} disabled={isSaving || dirtyCount === 0}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSaving ? "Saving..." : `Save${dirtyCount > 0 ? ` (${dirtyCount})` : ""}`}
+                </Button>
+              </>
             )
-          ) : (
-            <>
-              <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isSaving}>
-                <X className="mr-2 h-4 w-4" /> Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave} disabled={isSaving || dirtyCount === 0}>
-                <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : `Save${dirtyCount > 0 ? ` (${dirtyCount})` : ""}`}
-              </Button>
-            </>
           )}
         </div>
       </div>
@@ -567,51 +601,53 @@ export function TeacherGradeGrid() {
                         <span className="font-semibold leading-none">{field.name}</span>
                         <span className="font-light">({field.type === "moderation" ? field.value : `${field.total_mark}`})</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePublish(field)}
-                          disabled={togglingPublishId === field._id}
-                          className={
-                            field.published
-                              ? "text-green-600 hover:text-green-700 cursor-pointer dark:text-green-400"
-                              : "text-muted-foreground hover:text-foreground cursor-pointer"
-                          }
-                          title={field.published ? "Published, click to unpublish" : "Draft, click to publish"}
-                        >
-                          {field.published ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
-                        </button>
-                        {field.type === "attendance" && (
+                      {!readOnly && (
+                        <div className="flex items-center gap-2 flex-wrap">
                           <button
                             type="button"
-                            onClick={() => setSyncFieldTarget(field)}
-                            className="text-muted-foreground hover:text-foreground cursor-pointer"
-                            title="Refresh from attendance records"
+                            onClick={() => handleTogglePublish(field)}
+                            disabled={togglingPublishId === field._id}
+                            className={
+                              field.published
+                                ? "text-green-600 hover:text-green-700 cursor-pointer dark:text-green-400"
+                                : "text-muted-foreground hover:text-foreground cursor-pointer"
+                            }
+                            title={field.published ? "Published, click to unpublish" : "Draft, click to publish"}
                           >
-                            <RefreshCw className="h-4.5 w-4.5" />
+                            {field.published ? <Eye className="h-4.5 w-4.5" /> : <EyeOff className="h-4.5 w-4.5" />}
                           </button>
-                        )}
-                        {isEditMode && (
-                          <button
-                            type="button"
-                            onClick={() => setEditFieldTarget(field)}
-                            className="text-muted-foreground hover:text-foreground cursor-pointer"
-                            title="Edit grade field"
-                          >
-                            <Pencil className="h-4.5 w-4.5" />
-                          </button>
-                        )}
-                        {isEditMode && (
-                          <button
-                            type="button"
-                            onClick={() => setDeleteFieldTarget(field)}
-                            className="text-muted-foreground hover:text-destructive cursor-pointer"
-                            title="Delete grade field"
-                          >
-                            <Trash2 className="h-4.5 w-4.5" />
-                          </button>
-                        )}
-                      </div>
+                          {field.type === "attendance" && (
+                            <button
+                              type="button"
+                              onClick={() => setSyncFieldTarget(field)}
+                              className="text-muted-foreground hover:text-foreground cursor-pointer"
+                              title="Refresh from attendance records"
+                            >
+                              <RefreshCw className="h-4.5 w-4.5" />
+                            </button>
+                          )}
+                          {isEditMode && (
+                            <button
+                              type="button"
+                              onClick={() => setEditFieldTarget(field)}
+                              className="text-muted-foreground hover:text-foreground cursor-pointer"
+                              title="Edit grade field"
+                            >
+                              <Pencil className="h-4.5 w-4.5" />
+                            </button>
+                          )}
+                          {isEditMode && (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteFieldTarget(field)}
+                              className="text-muted-foreground hover:text-destructive cursor-pointer"
+                              title="Delete grade field"
+                            >
+                              <Trash2 className="h-4.5 w-4.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </TableHead>
                 ))}
@@ -740,35 +776,38 @@ export function TeacherGradeGrid() {
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 whitespace-nowrap rounded-lg border bg-background/80 px-4 py-3 shadow-lg">
             <div className="mx-auto flex flex-col items-center gap-3 whitespace-nowrap rounded-lg bg-background px-4 py-3">
               <span className="text-sm text-muted-foreground">No grade fields yet</span>
-              <Button size="lg" onClick={() => setAddFieldOpen(true)} disabled={!selectedSession}>
-                <Plus className="mr-1.5 h-4 w-4" /> Add Field
-              </Button>
+              {!readOnly && (
+                <Button size="lg" onClick={() => setAddFieldOpen(true)} disabled={!sheetId && !selectedSession}>
+                  <Plus className="mr-1.5 h-4 w-4" /> Add Field
+                </Button>
+              )}
             </div>
           </div>
         )}
         </div>
       )}
 
-      {selectedSession && (
+      {(sheetId || selectedSession) && !readOnly && (
         <AddGradeFieldDialog
-        open={addFieldOpen || editFieldTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setAddFieldOpen(false);
-            setEditFieldTarget(null);
-          }
-        }}
-        batchId={selectedSession.batch._id}
-        subjectId={selectedSession.subject._id}
-        editingField={editFieldTarget}
-        onSaved={loadMatrix}
+          open={addFieldOpen || editFieldTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) {
+              setAddFieldOpen(false);
+              setEditFieldTarget(null);
+            }
+          }}
+          batchId={selectedBatchId || initialBatchId || selectedSession?.batch?._id || ""}
+          subjectId={selectedSubjectId || initialSubjectId || selectedSession?.subject?._id || ""}
+          sheetId={sheetId}
+          editingField={editFieldTarget}
+          onSaved={loadMatrix}
         />
       )}
 
       <AlertDialog open={deleteFieldTarget !== null} onOpenChange={(open) => !open && setDeleteFieldTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete &quot;{deleteFieldTarget?.name}&quot;?</AlertDialogTitle>
+            <AlertDialogTitle>Delete &quot;{deleteFieldTarget?.name || "field"}&quot;?</AlertDialogTitle>
             <AlertDialogDescription>
               This permanently deletes this grade field and every student&apos;s mark recorded against it. This
               cannot be undone.
@@ -790,7 +829,7 @@ export function TeacherGradeGrid() {
       <AlertDialog open={syncFieldTarget !== null} onOpenChange={(open) => !open && setSyncFieldTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Refresh &quot;{syncFieldTarget?.name}&quot; from attendance?</AlertDialogTitle>
+            <AlertDialogTitle>Refresh &quot;{syncFieldTarget?.name || "attendance"}&quot; from attendance?</AlertDialogTitle>
             <AlertDialogDescription>
               This re-pulls attendance for this batch and subject and overwrites every student&apos;s mark in this
               column. Any manual changes already made to this field will be lost.

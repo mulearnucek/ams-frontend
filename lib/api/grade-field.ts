@@ -29,13 +29,15 @@ export interface ListGradeFieldsParams {
   /** Optional for student/parent callers — the backend self-scopes to their own (or child's) batch regardless. */
   batch?: string;
   subject?: string;
+  sheet?: string;
   type?: GradeFieldType;
   limit?: number;
 }
 
 export interface CreateGradeFieldData {
-  batch: string;
-  subject: string;
+  grade_sheet?: string;
+  batch?: string;
+  subject?: string;
   type: GradeFieldType;
   name: string;
   /** Required for every type except moderation (which applies its raw `value` directly, uncapped). */
@@ -60,7 +62,8 @@ async function parseOrThrow<T>(response: Response, fallback: string): Promise<T>
 }
 
 export async function listGradeFields(params: ListGradeFieldsParams = {}): Promise<GradeField[]> {
-  const query = new URLSearchParams({ limit: String(params.limit ?? 100) });
+  const query = new URLSearchParams();
+  if (params.sheet) query.append("sheet", params.sheet);
   if (params.batch) query.append("batch", params.batch);
   if (params.subject) query.append("subject", params.subject);
   if (params.type) query.append("type", params.type);

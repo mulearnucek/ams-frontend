@@ -213,7 +213,9 @@ function AlertDialogContent({
           className
         )}
         {...props}
-      />
+      >
+        {children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }

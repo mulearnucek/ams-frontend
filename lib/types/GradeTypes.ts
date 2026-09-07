@@ -22,20 +22,58 @@ export interface GradeFieldBatchRef {
   department: string;
 }
 
-export interface GradeField {
+export interface GradeSheetUserRef {
+  _id: string;
+  name?: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface GradeSheetShare {
+  user: GradeSheetUserRef;
+  access: "view" | "edit";
+}
+
+export interface GradeSheet {
   _id: string;
   batch: GradeFieldBatchRef;
   subject: GradeFieldSubjectRef;
+  created_by: GradeSheetUserRef;
+  shared_with: GradeSheetShare[];
+  published: boolean;
+  published_at?: string;
+  sem?: string;
+  field_count?: number;
+  access?: "view" | "edit";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GradeEntrySubdocument {
+  user: string;
+  mark: number;
+  is_absent: boolean;
+  remarks?: string;
+  updated_at?: string;
+}
+
+export interface GradeField {
+  _id: string;
+  grade_sheet?: string;
+  batch?: GradeFieldBatchRef;
+  subject?: GradeFieldSubjectRef;
   type: GradeFieldType;
   name: string;
   /** Not present for type="moderation" — it applies its raw `value` directly, uncapped. */
   total_mark?: number;
   weightage: number;
   /** Whether students/parents can see this field yet. */
-  published: boolean;
+  published?: boolean;
   value?: string;
   description?: string;
   due_date?: string;
+  entries?: GradeEntrySubdocument[];
 }
 
 export interface GradeEntry {

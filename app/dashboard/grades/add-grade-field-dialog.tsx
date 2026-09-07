@@ -45,6 +45,7 @@ type AddGradeFieldDialogProps = {
   onOpenChange: (open: boolean) => void;
   batchId: string;
   subjectId: string;
+  sheetId?: string;
   /** When set, the dialog edits this existing field instead of creating a new one. */
   editingField?: GradeField | null;
   onSaved: () => void;
@@ -55,6 +56,7 @@ export function AddGradeFieldDialog({
   onOpenChange,
   batchId,
   subjectId,
+  sheetId,
   editingField,
   onSaved,
 }: AddGradeFieldDialogProps) {
@@ -82,7 +84,7 @@ export function AddGradeFieldDialog({
       setValue(editingField.value ?? "");
       setDescription(editingField.description ?? "");
       setDueDate(toDateInputValue(editingField.due_date));
-      setPublished(editingField.published);
+      setPublished(Boolean(editingField.published));
     } else {
       setName("");
       setType("exam");
@@ -144,7 +146,7 @@ export function AddGradeFieldDialog({
       if (editingField) {
         await updateGradeField(editingField._id, payload);
       } else {
-        await createGradeField({ batch: batchId, subject: subjectId, ...payload });
+        await createGradeField({ grade_sheet: sheetId, batch: batchId, subject: subjectId, ...payload });
       }
 
       handleOpenChange(false);

@@ -22,8 +22,11 @@ async function parseOrThrow<T>(response: Response, fallback: string): Promise<T>
   return result.data as T;
 }
 
-export async function getGradeMatrix(batch: string, subject: string): Promise<GradeMatrix> {
-  const query = new URLSearchParams({ batch, subject });
+export async function getGradeMatrix(batch?: string, subject?: string, sheet?: string): Promise<GradeMatrix> {
+  const query = new URLSearchParams();
+  if (sheet) query.append("sheet", sheet);
+  if (batch) query.append("batch", batch);
+  if (subject) query.append("subject", subject);
   const response = await fetch(`${API_BASE}/academics/grade-entry/matrix?${query.toString()}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
