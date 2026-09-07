@@ -116,6 +116,26 @@ export async function listSchemes(): Promise<string[]> {
 }
 
 /**
+ * List distinct department values across all subjects, optionally filtered by scheme.
+ */
+export async function listDepartments(scheme?: string): Promise<string[]> {
+  const query = scheme ? `?scheme=${encodeURIComponent(scheme)}` : '';
+  const response = await fetch(`${API_BASE}/academics/subject/departments${query}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch departments');
+  }
+
+  const result: ApiResponse<{ departments: string[] }> = await response.json();
+  return result.data.departments;
+}
+
+/**
  * Get a specific subject by ID
  */
 export async function getSubjectById(id: string): Promise<Subject> {

@@ -16,9 +16,10 @@ import { useIsGeneralDept } from "@/lib/departments";
 
 interface CreateClassDialogProps {
   onClassCreated?: () => void;
+  trigger?: React.ReactNode;
 }
 
-export default function CreateClassDialog({ onClassCreated }: CreateClassDialogProps) {
+export default function CreateClassDialog({ onClassCreated, trigger }: CreateClassDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,8 +31,7 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const [batchId, setBatchId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [duration, setDuration] = useState<number>(1);
-  const [startHour, setStartHour] = useState<number>(new Date().getHours());
-  const [sessionType, setSessionType] = useState<SessionType>("regular");
+  const [endHour, setEndHour] = useState<number>(new Date().getHours());
   const { user } = useAuth();
   const teacherDept = (user?.profile as any)?.department as string | undefined;
   // A teacher in the "general" department (e.g. GEN) teaches all batches.
@@ -41,9 +41,8 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   useEffect(() => {
     if (open) {
       loadData();
-      setStartHour(new Date().getHours());
+      setEndHour(new Date().getHours());
       setDuration(1);
-      setSessionType("regular");
       setBatchId("");
       setSubjectId("");
       setError(null);
@@ -102,16 +101,16 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
     loadSubjectsForBatch();
   }, [batchId, batches, isGeneralDept]);
 
-  const getStartTimePreview = () => {
-    let t = setHours(new Date(), startHour);
+  const getEndTimePreview = () => {
+    let t = setHours(new Date(), endHour);
     t = setMinutes(t, 0);
     t = setSeconds(t, 0);
     t = setMilliseconds(t, 0);
     return t;
   };
 
-  const getEndTimePreview = () =>
-    new Date(getStartTimePreview().getTime() + duration * 60 * 60 * 1000);
+  const getStartTimePreview = () =>
+    new Date(getEndTimePreview().getTime() - duration * 60 * 60 * 1000);
 
   const handleSubmit = async () => {
     if (!batchId || !subjectId) return;
@@ -121,13 +120,16 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
       const startTime = getStartTimePreview();
       const endTime = getEndTimePreview();
 
+      const resolvedSessionType: SessionType =
+        selectedSubject?.type?.toLowerCase() === "practical" ? "practical" : "regular";
+
       const sessionData: CreateSessionData = {
         batch: batchId,
         subject: subjectId,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         hours_taken: duration,
-        session_type: sessionType,
+        session_type: resolvedSessionType,
       };
 
       const newSession = await createAttendanceSession(sessionData);
@@ -145,10 +147,14 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg" className="w-full md:w-auto">
-          <Plus className="mr-2 h-5 w-5" />
-          Create New Class
-        </Button>
+        {trigger ? (
+          trigger
+        ) : (
+          <Button size="lg" className="w-full md:w-auto">
+            <Plus className="mr-2 h-5 w-5" />
+            Create New Class
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -168,20 +174,22 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
 
           {/* Schedule Preview */}
           <div className="bg-muted rounded-lg p-4 space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-top gap-1.5 min-w-0">
-                <BookOpen className="h-4 w-4 text-primary mt-5 shrink-0" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <BookOpen className="h-4 w-4 text-primary shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold line-clamp-2 wrap-break-word">
+                  <p className="font-semibold line-clamp-2 break-words leading-tight">
                     {selectedSubject ? selectedSubject.name : <span className="text-muted-foreground font-normal">No subject selected</span>}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedSubject ? selectedSubject.subject_code : "—"}
-                  </p>
+                  {selectedSubject && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {selectedSubject.subject_code}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-sm text-muted-foreground">
                   {selectedBatch ? `${selectedBatch.name}` : "No batch selected"}
                 </span>
@@ -269,10 +277,10 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
             </div>
           </div>
 
-          {/* Start Time */}
+          {/* End Time */}
           <div className="space-y-2">
-            <Label>Start Time</Label>
-            <Select value={String(startHour)} onValueChange={(v) => setStartHour(Number(v))}>
+            <Label>End Time</Label>
+            <Select value={String(endHour)} onValueChange={(v) => setEndHour(Number(v))}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -284,24 +292,6 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Session Type */}
-          <div className="space-y-2">
-            <Label>Session Type</Label>
-            <div className="flex gap-2">
-              {(["regular", "extra", "practical"] as SessionType[]).map((type) => (
-                <Button
-                  key={type}
-                  type="button"
-                  variant={sessionType === type ? "default" : "outline"}
-                  className="flex-1 capitalize"
-                  onClick={() => setSessionType(type)}
-                >
-                  {type}
-                </Button>
-              ))}
-            </div>
           </div>
 
           {/* Actions */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import GreetingHeader from "@/components/student/greeting-header";
 import ClassAttendanceOverview from "@/components/teacher/class-attendance-overview";
@@ -8,10 +8,12 @@ import TeacherNotifications from "@/components/teacher/teacher-notifications";
 import MyClasses from "@/components/teacher/my-classes";
 import { listAttendanceSessions } from "@/lib/api/attendance-session";
 import { listAttendanceRecords } from "@/lib/api/attendance-record";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ChevronDown } from "lucide-react";
+import { AlertCircle, ChevronDown, Plus } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import CreateClassDialog from "./attendance/create-class-dialog";
 
 import { getTeacherOverview, type TeacherAttendanceOverview as TeacherAttendanceCard } from "@/lib/api/attendance-stats";
 
@@ -31,118 +33,119 @@ export default function TeacherHome() {
     const [notifications, setNotifications] = useState<TeacherNotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [myClassesOpen, setMyClassesOpen] = useState(false);
+    const [myClassesOpen, setMyClassesOpen] = useState(true);
 
-    useEffect(() => {
-        const loadTeacherDashboard = async () => {
-            if (!user?.email) {
+    const loadTeacherDashboard = useCallback(async () => {
+        if (!user?.email) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+            setError(null);
+
+            let allSessions: Awaited<ReturnType<typeof listAttendanceSessions>>["sessions"] = [];
+            let page = 1;
+            let totalPages = 1;
+
+            do {
+                const response = await listAttendanceSessions({ page, limit: 100 });
+                allSessions = [...allSessions, ...response.sessions];
+                totalPages = response.pagination?.totalPages || 1;
+                page += 1;
+            } while (page <= totalPages);
+
+            const teacherSessionsFiltered = allSessions.filter((session) => {
+                const creator = session.created_by as unknown as
+                    | string
+                    | {
+                        _id?: string;
+                        email?: string;
+                        user?: {
+                            _id?: string;
+                            email?: string;
+                        };
+                    }
+                    | undefined;
+
+                const createdByUserId =
+                    typeof creator === "string"
+                        ? creator
+                        : (creator?.user?._id || creator?._id);
+
+                const createdByEmail =
+                    typeof creator === "string"
+                        ? undefined
+                        : (creator?.user?.email || creator?.email)?.toLowerCase();
+
+                if (user._id && createdByUserId) {
+                    return createdByUserId === user._id;
+                }
+
+                return createdByEmail === user.email.toLowerCase();
+            });
+
+            const hasCreatorMetadata = allSessions.some((session) => {
+                const creator = session.created_by as unknown as
+                    | string
+                    | {
+                        _id?: string;
+                        email?: string;
+                        user?: {
+                            _id?: string;
+                            email?: string;
+                        };
+                    }
+                    | undefined;
+
+                if (typeof creator === "string") return true;
+                return Boolean(creator?._id || creator?.email || creator?.user?._id || creator?.user?.email);
+            });
+
+            const teacherSessions =
+                teacherSessionsFiltered.length === 0 && allSessions.length > 0 && !hasCreatorMetadata
+                    ? allSessions
+                    : teacherSessionsFiltered;
+
+            if (teacherSessions.length === 0) {
+                setAttendanceData([]);
+                setNotifications([]);
                 setLoading(false);
+                setMyClassesOpen(true);
                 return;
             }
 
-            try {
-                setLoading(true);
-                setError(null);
+            const overviewData = await getTeacherOverview();
 
-                let allSessions: Awaited<ReturnType<typeof listAttendanceSessions>>["sessions"] = [];
-                let page = 1;
-                let totalPages = 1;
+            const nextNotifications: TeacherNotificationItem[] = teacherSessions
+                .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+                .slice(0, 5)
+                .map((session) => ({
+                    id: session._id,
+                    title: `Session conducted for ${session.subject.name}`,
+                    message: `Attendance session for ${session.batch.name} was conducted at ${new Date(session.start_time).toLocaleString()}.`,
+                    type: "info",
+                    postedBy: user.first_name || user.name || "Teacher",
+                    postedAt: new Date(session.createdAt || session.start_time),
+                    targetClass: session.subject.subject_code,
+                }));
 
-                do {
-                    const response = await listAttendanceSessions({ page, limit: 100 });
-                    allSessions = [...allSessions, ...response.sessions];
-                    totalPages = response.pagination?.totalPages || 1;
-                    page += 1;
-                } while (page <= totalPages);
+            setAttendanceData(overviewData);
+            setNotifications(nextNotifications);
+        } catch (err) {
+            console.error("Failed to load teacher dashboard:", err);
+            setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+            setAttendanceData([]);
+            setNotifications([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [user?._id, user?.email, user?.first_name, user?.name]);
 
-                const teacherSessionsFiltered = allSessions.filter((session) => {
-                    const creator = session.created_by as unknown as
-                        | string
-                        | {
-                            _id?: string;
-                            email?: string;
-                            user?: {
-                                _id?: string;
-                                email?: string;
-                            };
-                        }
-                        | undefined;
-
-                    const createdByUserId =
-                        typeof creator === "string"
-                            ? creator
-                            : (creator?.user?._id || creator?._id);
-
-                    const createdByEmail =
-                        typeof creator === "string"
-                            ? undefined
-                            : (creator?.user?.email || creator?.email)?.toLowerCase();
-
-                    if (user._id && createdByUserId) {
-                        return createdByUserId === user._id;
-                    }
-
-                    return createdByEmail === user.email.toLowerCase();
-                });
-
-                const hasCreatorMetadata = allSessions.some((session) => {
-                    const creator = session.created_by as unknown as
-                        | string
-                        | {
-                            _id?: string;
-                            email?: string;
-                            user?: {
-                                _id?: string;
-                                email?: string;
-                            };
-                        }
-                        | undefined;
-
-                    if (typeof creator === "string") return true;
-                    return Boolean(creator?._id || creator?.email || creator?.user?._id || creator?.user?.email);
-                });
-
-                const teacherSessions =
-                    teacherSessionsFiltered.length === 0 && allSessions.length > 0 && !hasCreatorMetadata
-                        ? allSessions
-                        : teacherSessionsFiltered;
-
-                if (teacherSessions.length === 0) {
-                    setAttendanceData([]);
-                    setNotifications([]);
-                    setLoading(false);
-                    return;
-                }
-
-                const overviewData = await getTeacherOverview();
-
-                const nextNotifications: TeacherNotificationItem[] = teacherSessions
-                    .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
-                    .slice(0, 5)
-                    .map((session) => ({
-                        id: session._id,
-                        title: `Session conducted for ${session.subject.name}`,
-                        message: `Attendance session for ${session.batch.name} was conducted at ${new Date(session.start_time).toLocaleString()}.`,
-                        type: "info",
-                        postedBy: user.first_name || user.name || "Teacher",
-                        postedAt: new Date(session.createdAt || session.start_time),
-                        targetClass: session.subject.subject_code,
-                    }));
-
-                setAttendanceData(overviewData);
-                setNotifications(nextNotifications);
-            } catch (err) {
-                console.error("Failed to load teacher dashboard:", err);
-                setError(err instanceof Error ? err.message : "Failed to load dashboard data");
-                setAttendanceData([]);
-                setNotifications([]);
-            } finally {
-                setLoading(false);
-            }
-        };
-
+    useEffect(() => {
         loadTeacherDashboard();
-    }, [user?._id, user?.email]);
+    }, [loadTeacherDashboard]);
 
     return (
         <div className="container mx-auto p-4 md:p-6 pb-20 md:pb-6 space-y-6">
@@ -156,19 +159,32 @@ export default function TeacherHome() {
                 </Alert>
             )}
 
-            {/* Recent Sessions / Quick Start - collapsed by default */}
-            <Collapsible open={myClassesOpen} onOpenChange={setMyClassesOpen}>
-                <CollapsibleTrigger asChild>
-                    <button className="flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50">
-                        <div>
-                            <h2 className="text-base font-semibold">My Classes</h2>
-                            <p className="text-sm text-muted-foreground">Recent sessions — click to start a new one</p>
-                        </div>
-                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${myClassesOpen ? "rotate-180" : ""}`} />
-                    </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-4">
-                    <MyClasses />
+            {/* Recent Sessions / Quick Start */}
+            <Collapsible open={myClassesOpen} onOpenChange={setMyClassesOpen} className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                    <CollapsibleTrigger asChild>
+                        <button className="flex flex-1 items-center justify-between text-left transition-colors hover:opacity-80 mr-3">
+                            <div>
+                                <h2 className="text-base font-semibold">My Classes</h2>
+                                <p className="text-sm text-muted-foreground">Recent sessions — click to start a new one</p>
+                            </div>
+                            <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${myClassesOpen ? "rotate-180" : ""}`} />
+                        </button>
+                    </CollapsibleTrigger>
+                    <div className="shrink-0">
+                        <CreateClassDialog
+                            onClassCreated={loadTeacherDashboard}
+                            trigger={
+                                <Button size="sm" className="gap-1.5">
+                                    <Plus className="h-4 w-4" />
+                                    Create Class
+                                </Button>
+                            }
+                        />
+                    </div>
+                </div>
+                <CollapsibleContent>
+                    <MyClasses onSessionCreated={loadTeacherDashboard} />
                 </CollapsibleContent>
             </Collapsible>
 
@@ -179,7 +195,10 @@ export default function TeacherHome() {
                     {loading ? (
                         <Skeleton className="h-[420px] w-full" />
                     ) : (
-                        <ClassAttendanceOverview attendance={attendanceData} />
+                        <ClassAttendanceOverview
+                            attendance={attendanceData}
+                            onClassCreated={loadTeacherDashboard}
+                        />
                     )}
                 </div>
 

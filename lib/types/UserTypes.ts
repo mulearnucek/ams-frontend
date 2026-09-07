@@ -107,6 +107,8 @@ export interface ListUsersParams {
   batch?: string;
   /** Request the full per-user shape (populated batch/child, timestamps, etc.) instead of the lean list-row shape. */
   full?: boolean;
+  sort?: string;
+  order?: "asc" | "desc";
 }
 
 // ─── Write payloads ───────────────────────────────────────────────────────────

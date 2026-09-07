@@ -1,8 +1,10 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CalendarCheck, TrendingUp, TrendingDown } from "lucide-react";
+import { CalendarCheck, TrendingUp, TrendingDown, Plus } from "lucide-react";
+import CreateClassDialog from "@/app/dashboard/@teacher/attendance/create-class-dialog";
 
 type ClassAttendance = {
   className: string;
@@ -14,6 +16,7 @@ type ClassAttendance = {
 
 type ClassAttendanceOverviewProps = {
   attendance: ClassAttendance[];
+  onClassCreated?: () => void;
 };
 
 const AttendanceGauge = ({ percentage, colorClass }: { percentage: number, colorClass: string }) => {
@@ -54,7 +57,7 @@ const AttendanceGauge = ({ percentage, colorClass }: { percentage: number, color
   );
 };
 
-export default function ClassAttendanceOverview({ attendance }: ClassAttendanceOverviewProps) {
+export default function ClassAttendanceOverview({ attendance, onClassCreated }: ClassAttendanceOverviewProps) {
   const overallAverage = attendance.length > 0 
     ? Math.round(attendance.reduce((sum, item) => sum + item.averageAttendance, 0) / attendance.length) 
     : 0;
@@ -78,62 +81,87 @@ export default function ClassAttendanceOverview({ attendance }: ClassAttendanceO
   };
 
   return (
-    <Card className="h-auto lg:h-[560px]">
+    <Card className="h-auto lg:h-[560px] flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CalendarCheck className="w-5 h-5" />
           Class Attendance Overview
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6 flex-1 min-h-0 overflow-y-auto">
-        {/* Overall Gauge */}
-        <div className="flex flex-col items-center">
-          <AttendanceGauge 
-            percentage={overallAverage} 
-            colorClass={getAttendanceColor(overallAverage)} 
-          />
-          <p className={`text-sm font-medium mt-2 ${getAttendanceColor(overallAverage)}`}>
-            Overall Average: {overallAverage}%
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {getAttendanceMessage(overallAverage)}
-          </p>
-        </div>
+      <CardContent className="space-y-6 flex-1 min-h-0 overflow-y-auto flex flex-col">
+        {attendance.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 my-auto text-center">
+            <div className="rounded-full bg-muted p-4 mb-3">
+              <CalendarCheck className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h4 className="text-base font-semibold mb-1">No attendance data yet</h4>
+            <p className="text-sm text-muted-foreground max-w-xs mb-5">
+              Attendance statistics and class performance will appear here once you conduct your first class session.
+            </p>
+            {onClassCreated && (
+              <CreateClassDialog
+                onClassCreated={onClassCreated}
+                trigger={
+                  <Button variant="outline" className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create First Class
+                  </Button>
+                }
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Overall Gauge */}
+            <div className="flex flex-col items-center">
+              <AttendanceGauge 
+                percentage={overallAverage} 
+                colorClass={getAttendanceColor(overallAverage)} 
+              />
+              <p className={`text-sm font-medium mt-2 ${getAttendanceColor(overallAverage)}`}>
+                Overall Average: {overallAverage}%
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {getAttendanceMessage(overallAverage)}
+              </p>
+            </div>
 
-        {/* Per-Class Breakdown */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-semibold">Class-wise Performance</h4>
-          {attendance.map((classItem, index) => {
-            const percentage = classItem.averageAttendance;
-            const colorClass = getAttendanceColor(percentage);
+            {/* Per-Class Breakdown */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-semibold">Class-wise Performance</h4>
+              {attendance.map((classItem, index) => {
+                const percentage = classItem.averageAttendance;
+                const colorClass = getAttendanceColor(percentage);
 
-            return (
-              <div key={index} className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{classItem.className}</span>
-                    {getTrendIcon(classItem.trend)}
+                return (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{classItem.className}</span>
+                        {getTrendIcon(classItem.trend)}
+                      </div>
+                      <span className={`font-semibold ${colorClass}`}>
+                        {percentage}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Progress 
+                        value={percentage} 
+                        className="flex-1 h-2" 
+                      />
+                      <span className="text-xs text-muted-foreground w-16">
+                        {classItem.totalClasses} classes
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {classItem.classCode}
+                    </div>
                   </div>
-                  <span className={`font-semibold ${colorClass}`}>
-                    {percentage}%
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Progress 
-                    value={percentage} 
-                    className="flex-1 h-2" 
-                  />
-                  <span className="text-xs text-muted-foreground w-16">
-                    {classItem.totalClasses} classes
-                  </span>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {classItem.classCode}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

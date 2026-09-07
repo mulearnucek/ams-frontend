@@ -24,7 +24,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Eye, Pencil, Trash2, Search, UserPlus, Upload, Download, Loader2, ChevronRight, ChevronDown, Folder, Users, LayoutList } from "lucide-react";
@@ -45,7 +44,13 @@ import { BulkUploadDialog, templateHeadersForRole, downloadTextFile } from "./bu
 const DEFAULT_ITEMS_PER_PAGE = 10;
 
 type TabValue = "student" | "parent" | "staff";
-type SortOption = "name-asc" | "name-desc" | "created-desc" | "created-asc";
+type SortOption =
+  | "name-asc"
+  | "name-desc"
+  | "candidate-asc"
+  | "candidate-desc"
+  | "created-desc"
+  | "created-asc";
 
 const ROLE_TABS: { value: TabValue; label: string; roles: UserRole[] }[] = [
   { value: "student", label: "Students", roles: ["student"] },
@@ -171,12 +176,18 @@ export default function UsersPage() {
         });
       } else {
         const [sort, order] = sortOption.split('-');
+        const sortField =
+          sort === 'created'
+            ? 'createdAt'
+            : sort === 'candidate'
+            ? 'candidate_code'
+            : sort;
         const payload: any = {
           role: currentTabConfig.roles[0],
           page: currentPage,
           limit: itemsPerPage,
           search: activeSearch || undefined,
-          sort: sort === 'created' ? 'createdAt' : sort,
+          sort: sortField,
           order,
         };
         if (selectedTab === "student" && selectedBatchId) payload.batch = selectedBatchId;
@@ -306,13 +317,6 @@ export default function UsersPage() {
   const startItem = pagination ? (pagination.currentPage - 1) * pagination.limit + 1 : 0;
   const endItem = pagination ? Math.min(pagination.currentPage * pagination.limit, pagination.totalUsers) : 0;
 
-  const getRoleBadgeVariant = (role: string): "default" | "secondary" | "destructive" | "outline" => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      admin: "destructive", principal: "destructive", hod: "secondary", teacher: "secondary", student: "default", parent: "outline", staff: "outline",
-    };
-    return variants[role] || "default";
-  };
-
   return (
     <>
       <div className="p-4 md:p-8">
@@ -332,7 +336,20 @@ export default function UsersPage() {
         </div>
 
         <CardContent className="space-y-4">
-          <Tabs value={selectedTab} onValueChange={(v) => { setSelectedTab(v as TabValue); setCurrentPage(1); setSearchQuery(""); setActiveSearch(""); }} className="w-full">
+          <Tabs
+            value={selectedTab}
+            onValueChange={(v) => {
+              const tab = v as TabValue;
+              setSelectedTab(tab);
+              setCurrentPage(1);
+              setSearchQuery("");
+              setActiveSearch("");
+              if (tab !== "student" && (sortOption === "candidate-asc" || sortOption === "candidate-desc")) {
+                setSortOption("name-asc");
+              }
+            }}
+            className="w-full"
+          >
             <TabsList className="grid w-full grid-cols-3 mb-6">
               {ROLE_TABS.map((tab) => <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>)}
             </TabsList>
@@ -390,7 +407,6 @@ export default function UsersPage() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
-                      <TableHead className="hidden md:table-cell">Role</TableHead>
                       <TableHead className="hidden lg:table-cell">
                         {selectedTab === "student" ? "Candidate Code / Adm No." : selectedTab === "staff" ? "Designation" : "Relation"}
                       </TableHead>
@@ -401,10 +417,10 @@ export default function UsersPage() {
                   <TableBody>
                     {isLoading ? Array.from({ length: 5 }).map((_, i) => (
                       <TableRow key={i}>
-                        <TableCell><Skeleton className="h-4 w-32" /></TableCell><TableCell><Skeleton className="h-4 w-48" /></TableCell><TableCell><Skeleton className="h-4 w-20" /></TableCell><TableCell><Skeleton className="h-4 w-24" /></TableCell><TableCell><Skeleton className="h-4 w-16" /></TableCell><TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
+                        <TableCell><Skeleton className="h-4 w-32" /></TableCell><TableCell><Skeleton className="h-4 w-48" /></TableCell><TableCell><Skeleton className="h-4 w-24" /></TableCell><TableCell><Skeleton className="h-4 w-16" /></TableCell><TableCell><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                       </TableRow>
                     )) : users.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="h-112 text-center text-muted-foreground"><Users className="h-8 w-8 mx-auto mb-2 opacity-20" /><p>No users found</p></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={5} className="h-112 text-center text-muted-foreground"><Users className="h-8 w-8 mx-auto mb-2 opacity-20" /><p>No users found</p></TableCell></TableRow>
                     ) : users.map((user) => {
                       const p = (user.profile ?? {}) as any;
                       return (
@@ -416,7 +432,6 @@ export default function UsersPage() {
                             </div>
                           </TableCell>
                           <TableCell className="max-w-50 truncate">{user.email}</TableCell>
-                          <TableCell className="hidden md:table-cell"><Badge variant={getRoleBadgeVariant(user.role)}>{user.role}</Badge></TableCell>
                           <TableCell className="hidden lg:table-cell">
                             {selectedTab === "student" ? (
                               <div className="flex flex-col">
@@ -445,10 +460,16 @@ export default function UsersPage() {
                   <p className="text-xs text-muted-foreground">Showing {startItem}–{endItem} of {pagination.totalUsers} users</p>
                   <div className="flex items-center gap-2">
                     <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
-                      <SelectTrigger className="w-40 text-xs h-8"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-44 text-xs h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="name-asc">Name (A-Z)</SelectItem>
                         <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                        {selectedTab === "student" && (
+                          <>
+                            <SelectItem value="candidate-asc">Candidate Code (Asc)</SelectItem>
+                            <SelectItem value="candidate-desc">Candidate Code (Desc)</SelectItem>
+                          </>
+                        )}
                         <SelectItem value="created-desc">Newest</SelectItem>
                         <SelectItem value="created-asc">Oldest</SelectItem>
                       </SelectContent>

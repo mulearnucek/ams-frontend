@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle2, CircleAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { createBulkAttendanceRecords, updateBulkAttendanceRecords, type AttendanceStatus } from "@/lib/api/attendance-record";
 import type { User } from "@/lib/types/UserTypes";
 import type { AttendanceSession, EmbeddedAttendanceRecord } from "@/lib/api/attendance-session";
@@ -49,7 +50,7 @@ export default function CsvAttendanceDialog({
 
   const parsedRolls = useMemo(() => {
     return rollInput
-      .split(/[\n,]+/)
+      .split(/[\s,]+/)
       .map((item) => item.trim())
       .filter(Boolean);
   }, [rollInput]);
@@ -244,10 +245,10 @@ export default function CsvAttendanceDialog({
             </Label>
             <Textarea
               id="rollInput"
-              placeholder="Enter roll numbers separated by commas or new lines (e.g., 001,005,010 or paste from spreadsheet)"
+              placeholder="Enter roll numbers separated by spaces, commas, or new lines (e.g., 1 2 4 55 23 or 001, 005)"
               value={rollInput}
               onChange={(e) => setRollInput(e.target.value)}
-              className="min-h-32 font-mono text-sm"
+              className="min-h-32 font-sans text-sm"
               disabled={saving}
             />
             {latestEnteredRoll && (
@@ -271,38 +272,46 @@ export default function CsvAttendanceDialog({
 
           {/* Matched Students */}
           {matchedStudents.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Matched Students ({matchedStudents.length})</Label>
-              <div className="max-h-48 overflow-y-auto space-y-1">
-                {matchedStudents.map((student) => (
-                  <div
-                    key={student.studentId}
-                    className="flex items-center justify-between p-2 rounded-xl border text-sm"
-                  >
-                    <span>{student.studentName}</span>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        mode === "present"
-                          ? "bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:text-green-400"
-                          : "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400"
-                      }
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Matched Students ({matchedStudents.length})
+              </Label>
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto rounded-lg border bg-muted/20 p-2">
+                {matchedStudents.map((student) => {
+                  const roll = student.rollNo.replace(/^0+/, "") || "0";
+                  return (
+                    <div
+                      key={student.studentId}
+                      className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs shadow-xs"
                     >
-                      {student.rollNo.replace(/^0+/, "") || "0"}
-                    </Badge>
-                  </div>
-                ))}
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "h-5 px-1.5 text-[11px] font-bold rounded",
+                          mode === "present"
+                            ? "bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-950/40 dark:text-green-400"
+                            : "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400"
+                        )}
+                      >
+                        {roll}
+                      </Badge>
+                      <span className="font-medium text-foreground">
+                        {student.studentName}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
           {/* Unknown Rolls */}
           {unknownRolls.length > 0 && (
-            <Alert variant="destructive">
-              <CircleAlert className="h-4 w-4" />
-              <AlertDescription>
-                <p className="font-semibold mb-1">Unknown roll numbers: {unknownRolls.join(", ")}</p>
-                <p className="text-xs">These roll numbers don't match any student in the batch.</p>
+            <Alert variant="destructive" className="py-2 px-3">
+              <CircleAlert className="h-4 w-4 shrink-0" />
+              <AlertDescription className="text-xs">
+                <span className="font-semibold">Unknown roll numbers: </span>
+                <span>{unknownRolls.join(", ")} (not found in batch)</span>
               </AlertDescription>
             </Alert>
           )}

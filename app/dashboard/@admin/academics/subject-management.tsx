@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Subject, listSubjects, listSchemes } from "@/lib/api/subject";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Subject, listSubjects, listSchemes, listDepartments } from "@/lib/api/subject";
+import { useDepartments } from "@/lib/departments";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -57,6 +58,10 @@ const buildSubjectExportRow = (s: Subject): string[] => [
 export function SubjectManagement() {
   const [schemes, setSchemes] = useState<string[]>([]);
   const [selectedScheme, setSelectedScheme] = useState<string>("");
+  const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
+  const [dbDepartments, setDbDepartments] = useState<string[]>([]);
+  const configDepartments = useDepartments();
+
   const [schemesLoading, setSchemesLoading] = useState(true);
   const [schemesError, setSchemesError] = useState<string | null>(null);
 
@@ -75,28 +80,49 @@ export function SubjectManagement() {
   const [addSubjectDialogOpen, setAddSubjectDialogOpen] = useState(false);
   const [bulkUploadDialogOpen, setBulkUploadDialogOpen] = useState(false);
 
+  const availableDepartments = useMemo(() => {
+    const set = new Set<string>();
+    configDepartments.forEach((d) => set.add(d.code));
+    dbDepartments.forEach((d) => set.add(d));
+    if (set.size === 0) {
+      ["CSE", "ECE", "IT"].forEach((d) => set.add(d));
+    }
+    return Array.from(set).sort();
+  }, [configDepartments, dbDepartments]);
+
+  const refreshDepartments = useCallback(async () => {
+    try {
+      const result = await listDepartments();
+      setDbDepartments(result);
+    } catch (err) {
+      console.error("Failed to fetch departments", err);
+    }
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
         setSchemesLoading(true);
         setSchemesError(null);
-        const result = await listSchemes();
-        setSchemes(result);
-        if (result.length > 0) setSelectedScheme(result[0]);
+        const [schemesResult] = await Promise.all([
+          listSchemes(),
+          refreshDepartments(),
+        ]);
+        setSchemes(schemesResult);
+        if (schemesResult.length > 0) setSelectedScheme(schemesResult[0]);
       } catch (err) {
         setSchemesError(err instanceof Error ? err.message : "Failed to fetch schemes");
       } finally {
         setSchemesLoading(false);
       }
     })();
-  }, []);
+  }, [refreshDepartments]);
 
-  // Scheme changed — every semester's cached data belongs to the old scheme.
+  // Scheme or department changed — reset cached data for semesters
   useEffect(() => {
-    setOpenSems(new Set());
     setSubjectsBySem({});
     setSemErrors({});
-  }, [selectedScheme]);
+  }, [selectedScheme, selectedDepartment]);
 
   const loadSem = useCallback(
     async (sem: number, force = false) => {
@@ -111,7 +137,12 @@ export function SubjectManagement() {
       });
 
       try {
-        const data = await listSubjects({ scheme: selectedScheme, sem: String(sem), limit: FETCH_LIMIT });
+        const data = await listSubjects({
+          scheme: selectedScheme,
+          department: selectedDepartment !== "all" ? selectedDepartment : undefined,
+          sem: String(sem),
+          limit: FETCH_LIMIT,
+        });
         setSubjectsBySem((prev) => ({ ...prev, [sem]: data.subjects }));
       } catch (err) {
         setSemErrors((prev) => ({
@@ -126,8 +157,17 @@ export function SubjectManagement() {
         });
       }
     },
-    [selectedScheme, subjectsBySem]
+    [selectedScheme, selectedDepartment, subjectsBySem]
   );
+
+  // If there are currently open semesters, reload them when filter changes
+  useEffect(() => {
+    if (openSems.size > 0 && selectedScheme) {
+      for (const sem of openSems) {
+        loadSem(sem, true);
+      }
+    }
+  }, [selectedScheme, selectedDepartment]);
 
   const toggleSem = (sem: number) => {
     setOpenSems((prev) => {
@@ -165,15 +205,18 @@ export function SubjectManagement() {
 
   const handleDeleteSuccess = async () => {
     refreshOpenSems();
+    refreshDepartments();
     setSelectedSubject(null);
   };
 
   const handleAddSuccess = async () => {
     refreshOpenSems();
+    refreshDepartments();
   };
 
   const handleUpdateSuccess = async () => {
     refreshOpenSems();
+    refreshDepartments();
   };
 
   const handleExportCsv = async () => {
@@ -186,6 +229,7 @@ export function SubjectManagement() {
       while (true) {
         const res = await listSubjects({
           scheme: selectedScheme || undefined,
+          department: selectedDepartment !== "all" ? selectedDepartment : undefined,
           page,
           limit: 100,
         });
@@ -200,7 +244,8 @@ export function SubjectManagement() {
       });
 
       const schemeLabel = selectedScheme ? `scheme-${selectedScheme}` : "all";
-      downloadTextFile(`ams-subjects-${schemeLabel}-${Date.now()}.csv`, csv + "\n");
+      const deptLabel = selectedDepartment !== "all" ? `dept-${selectedDepartment}` : "all";
+      downloadTextFile(`ams-subjects-${schemeLabel}-${deptLabel}-${Date.now()}.csv`, csv + "\n");
     } catch (err) {
       setExportError(err instanceof Error ? err.message : "Failed to export subjects");
     } finally {
@@ -212,6 +257,15 @@ export function SubjectManagement() {
     return type === "Theory"
       ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
       : "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+  };
+
+  const getDepartmentBadgeColor = (department: string) => {
+    switch (department) {
+      case "CSE": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-300 dark:border-blue-700";
+      case "ECE": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-green-300 dark:border-green-700";
+      case "IT": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 border-purple-300 dark:border-purple-700";
+      default: return "";
+    }
   };
 
   return (
@@ -260,19 +314,48 @@ export function SubjectManagement() {
             </div>
           ) : (
             <>
-              <ToggleGroup
-                type="single"
-                variant="outline"
-                value={selectedScheme}
-                onValueChange={(value) => value && setSelectedScheme(value)}
-                className="mb-4 flex-wrap justify-start"
-              >
-                {schemes.map((scheme) => (
-                  <ToggleGroupItem key={scheme} value={scheme} className="px-4">
-                    {scheme}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 p-3.5 rounded-lg border bg-muted/20">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    Scheme:
+                  </span>
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={selectedScheme}
+                    onValueChange={(value) => value && setSelectedScheme(value)}
+                    className="flex-wrap justify-start gap-1"
+                  >
+                    {schemes.map((scheme) => (
+                      <ToggleGroupItem key={scheme} value={scheme} className="px-3.5 h-8 text-xs font-medium">
+                        {scheme}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    Department:
+                  </span>
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={selectedDepartment}
+                    onValueChange={(value) => value && setSelectedDepartment(value)}
+                    className="flex-wrap justify-start gap-1"
+                  >
+                    <ToggleGroupItem value="all" className="px-3 h-8 text-xs font-medium">
+                      All Departments
+                    </ToggleGroupItem>
+                    {availableDepartments.map((dept) => (
+                      <ToggleGroupItem key={dept} value={dept} className="px-3 h-8 text-xs font-medium">
+                        {dept}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {SEMESTERS.map((sem) => {
@@ -311,7 +394,9 @@ export function SubjectManagement() {
                             </Alert>
                           ) : !subjects || subjects.length === 0 ? (
                             <div className="py-6 text-center text-sm text-muted-foreground">
-                              No subjects in this semester yet.
+                              {selectedDepartment !== "all"
+                                ? `No ${selectedDepartment} subjects found in this semester.`
+                                : "No subjects in this semester yet."}
                             </div>
                           ) : (
                             <Table>
@@ -330,7 +415,18 @@ export function SubjectManagement() {
                                   <TableRow key={subject._id}>
                                     <TableCell className="font-medium">{subject.subject_code}</TableCell>
                                     <TableCell>{subject.name}</TableCell>
-                                    <TableCell>{subject.department || "—"}</TableCell>
+                                    <TableCell>
+                                      {subject.department ? (
+                                        <Badge
+                                          variant="outline"
+                                          className={cn("text-xs font-medium", getDepartmentBadgeColor(subject.department))}
+                                        >
+                                          {subject.department}
+                                        </Badge>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </TableCell>
                                     <TableCell>
                                       <Badge variant="outline" className={getTypeBadgeColor(subject.type)}>
                                         {subject.type}

@@ -49,7 +49,7 @@ export default function CsvAttendancePage() {
 
   const parsedRolls = useMemo(() => {
     return rollInput
-      .split(/[\n,]+/)
+      .split(/[\s,]+/)
       .map((item) => item.trim())
       .filter(Boolean);
   }, [rollInput]);
@@ -364,34 +364,37 @@ export default function CsvAttendancePage() {
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-medium">Roll numbers (comma or new line separated)</p>
+            <p className="text-sm font-medium">Roll numbers (space, comma, or new line separated)</p>
             <Textarea
-              placeholder="e.g. 1, 3, 10 or 001, 003, 010 (last 3 digits - leading zeros optional)"
+              placeholder="e.g. 1 2 4 55 or 1, 3, 10 or 001, 003, 010 (last 3 digits - leading zeros optional)"
               value={rollInput}
               onChange={(e) => {
                 setRollInput(e.target.value);
                 setSaveError(null);
                 setSaveMessage(null);
               }}
-              className="min-h-28"
+              className="min-h-28 font-sans"
             />
           </div>
 
           {/* Matched Students Real-time Display */}
           {matchedStudents.length > 0 && (
-            <div className="rounded-lg border border-green-300 bg-green-50 dark:bg-green-950/20 dark:border-green-900 p-3 space-y-2">
-              <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+            <div className="rounded-lg border border-green-300 bg-green-50/50 dark:bg-green-950/20 dark:border-green-900 p-2.5 space-y-1.5">
+              <p className="text-xs font-semibold text-green-700 dark:text-green-300 uppercase tracking-wider">
                 Matched Students ({matchedStudents.length})
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
                 {matchedStudents.map((student) => {
                   const displayRoll = student.rollNo.replace(/^0+/, '') || '0';
                   return (
-                    <div key={student.studentId} className="flex items-center gap-2 text-sm bg-white dark:bg-background p-2 rounded border border-green-200 dark:border-green-900">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center border border-primary shrink-0">
-                        <span className="text-xs font-semibold text-primary">{displayRoll}</span>
+                    <div
+                      key={student.studentId}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-green-200 dark:border-green-900 bg-white dark:bg-background px-2 py-1 text-xs shadow-xs"
+                    >
+                      <div className="h-4 min-w-4 px-1 rounded bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-400 flex items-center justify-center font-bold text-[11px] shrink-0">
+                        {displayRoll}
                       </div>
-                      <span className="text-foreground">{student.studentName}</span>
+                      <span className="font-medium text-foreground">{student.studentName}</span>
                     </div>
                   );
                 })}

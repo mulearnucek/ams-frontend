@@ -22,34 +22,42 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duration, setDuration] = useState<number>(1);
-  const [startHour, setStartHour] = useState<number>(new Date().getHours());
-  const [sessionType, setSessionType] = useState<SessionType>("regular");
+  const [endHour, setEndHour] = useState<number>(new Date().getHours());
 
   // Reset to current hour when dialog opens
   useEffect(() => {
     if (open) {
-      setStartHour(new Date().getHours());
+      setEndHour(new Date().getHours());
       setDuration(1);
-      setSessionType("regular");
       setError(null);
     }
   }, [open]);
 
   if (!session) return null;
 
+  const getEndTimePreview = () => {
+    const now = new Date();
+    let endTime = setHours(now, endHour);
+    endTime = setMinutes(endTime, 0);
+    endTime = setSeconds(endTime, 0);
+    endTime = setMilliseconds(endTime, 0);
+    return endTime;
+  };
+
+  const getStartTimePreview = () => {
+    const endTime = getEndTimePreview();
+    return new Date(endTime.getTime() - duration * 60 * 60 * 1000);
+  };
+
   const handleStartClass = async () => {
     setError(null);
     setLoading(true);
     try {
-      // Create start time at the selected hour with 0 minutes and seconds
-      const now = new Date();
-      let startTime = setHours(now, startHour);
-      startTime = setMinutes(startTime, 0);
-      startTime = setSeconds(startTime, 0);
-      startTime = setMilliseconds(startTime, 0);
+      const startTime = getStartTimePreview();
+      const endTime = getEndTimePreview();
 
-      // Calculate end time based on duration
-      const endTime = new Date(startTime.getTime() + duration * 60 * 60 * 1000);
+      const resolvedSessionType: SessionType =
+        session.subject.type?.toLowerCase() === "practical" ? "practical" : "regular";
 
       const sessionData: CreateSessionData = {
         batch: session.batch._id,
@@ -57,7 +65,7 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         hours_taken: duration,
-        session_type: sessionType,
+        session_type: resolvedSessionType,
       };
 
       const newSession = await createAttendanceSession(sessionData);
@@ -73,19 +81,6 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
     } finally {
       setLoading(false);
     }
-  };
-
-  const getStartTimePreview = () => {
-    const now = new Date();
-    let startTime = setHours(now, startHour);
-    startTime = setMinutes(startTime, 0);
-    startTime = setSeconds(startTime, 0);
-    return startTime;
-  };
-
-  const getEndTimePreview = () => {
-    const startTime = getStartTimePreview();
-    return new Date(startTime.getTime() + duration * 60 * 60 * 1000);
   };
 
   return (
@@ -108,17 +103,16 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
 
           {/* Class Info + Schedule Preview */}
           <div className="bg-muted rounded-lg p-5 space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-top gap-1.5 min-w-0">
-                <BookOpen className="h-4 w-4 text-primary mt-5 shrink-0" />
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 min-w-0">
+                <BookOpen className="h-4 w-4 text-primary shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold line-clamp-2 break-words">{session.subject.name}</p>
-                  <p className="text-xs text-muted-foreground">{session.subject.subject_code}</p>
-                  
+                  <p className="font-semibold line-clamp-2 break-words leading-tight">{session.subject.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{session.subject.subject_code}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-sm text-muted-foreground">{session.batch.name} </span>
               </div>
             </div>
@@ -154,10 +148,10 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
             </div>
           </div>
 
-          {/* Start Time Selection */}
+          {/* End Time Selection */}
           <div className="space-y-2">
-            <Label>Start Time</Label>
-            <Select value={String(startHour)} onValueChange={(v) => setStartHour(Number(v))}>
+            <Label>End Time</Label>
+            <Select value={String(endHour)} onValueChange={(v) => setEndHour(Number(v))}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -169,37 +163,6 @@ export default function QuickStartDialog({ session, open, onOpenChange, onSessio
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Session Type */}
-          <div className="space-y-2">
-            <Label>Session Type</Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={sessionType === "regular" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setSessionType("regular")}
-              >
-                Regular
-              </Button>
-              <Button
-                type="button"
-                variant={sessionType === "extra" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setSessionType("extra")}
-              >
-                Extra
-              </Button>
-              <Button
-                type="button"
-                variant={sessionType === "practical" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setSessionType("practical")}
-              >
-                Practical
-              </Button>
-            </div>
           </div>
 
           {/* Actions */}

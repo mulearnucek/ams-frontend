@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BookOpen, Users, Calendar, Clock } from "lucide-react";
+import { BookOpen, Users, Calendar, Clock, Plus } from "lucide-react";
 import { getRecentUniqueSessions, type UniqueSession } from "@/lib/api/attendance-session";
 import { format } from "date-fns";
 import QuickStartDialog from "./quick-start-dialog";
+import CreateClassDialog from "@/app/dashboard/@teacher/attendance/create-class-dialog";
 
 interface MyClassesProps {
   onSessionCreated?: () => void;
@@ -55,15 +57,24 @@ export default function MyClasses({ onSessionCreated }: MyClassesProps) {
             ))}
           </div>
         ) : classes.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="rounded-full bg-muted p-3 mb-4">
-                <BookOpen className="h-8 w-8 text-muted-foreground" />
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-primary/10 p-3.5 mb-3">
+                <BookOpen className="h-7 w-7 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold mb-2">No classes found</h3>
-              <p className="text-sm text-muted-foreground text-center">
-                You haven&apos;t created any attendance sessions yet.
+              <h3 className="text-base font-semibold mb-1">No classes found</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
+                You haven&apos;t created any attendance sessions yet. Start a new class to begin tracking attendance.
               </p>
+              <CreateClassDialog
+                onClassCreated={handleSessionCreated}
+                trigger={
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Class
+                  </Button>
+                }
+              />
             </CardContent>
           </Card>
         ) : (

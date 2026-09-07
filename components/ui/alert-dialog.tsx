@@ -45,33 +45,161 @@ function AlertDialogOverlay({
   )
 }
 
+function MobileAlertDialogContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+  const contentRef = React.useRef<HTMLDivElement | null>(null)
+  const cancelRef = React.useRef<HTMLButtonElement | null>(null)
+  const isDraggingRef = React.useRef(false)
+  const startYRef = React.useRef(0)
+  const currentYRef = React.useRef(0)
+  const startTimeRef = React.useRef(0)
+
+  React.useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.style.transform = ""
+      contentRef.current.style.transition = ""
+    }
+  }, [])
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return
+    isDraggingRef.current = true
+    startYRef.current = e.clientY
+    currentYRef.current = 0
+    startTimeRef.current = Date.now()
+
+    if (contentRef.current) {
+      contentRef.current.style.transition = "none"
+    }
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // ignore
+    }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !contentRef.current) return
+    const deltaY = e.clientY - startYRef.current
+    if (deltaY > 0) {
+      currentYRef.current = deltaY
+      contentRef.current.style.transform = `translateY(${deltaY}px)`
+    } else {
+      const resistance = deltaY * 0.15
+      currentYRef.current = resistance
+      contentRef.current.style.transform = `translateY(${resistance}px)`
+    }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return
+    isDraggingRef.current = false
+
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!contentRef.current) return
+
+    const deltaY = currentYRef.current
+    const elapsed = Date.now() - startTimeRef.current
+    const velocity = deltaY / Math.max(elapsed, 1)
+
+    if (deltaY > 80 || (deltaY > 30 && velocity > 0.4)) {
+      contentRef.current.style.transition = "transform 0.2s cubic-bezier(0.32, 0.72, 0, 1)"
+      contentRef.current.style.transform = "translateY(100%)"
+      setTimeout(() => {
+        cancelRef.current?.click()
+      }, 160)
+    } else {
+      contentRef.current.style.transition = "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)"
+      contentRef.current.style.transform = "translateY(0)"
+    }
+  }
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return
+    isDraggingRef.current = false
+    if (contentRef.current) {
+      contentRef.current.style.transition = "transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)"
+      contentRef.current.style.transform = "translateY(0)"
+    }
+  }
+
+  return (
+    <AlertDialogPortal>
+      <AlertDialogOverlay />
+      <AlertDialogPrimitive.Content
+        ref={(node) => {
+          contentRef.current = node
+          const externalRef = (props as any).ref
+          if (typeof externalRef === "function") {
+            externalRef(node)
+          } else if (externalRef && typeof externalRef === "object") {
+            externalRef.current = node
+          }
+        }}
+        data-slot="alert-dialog-content"
+        className={cn(
+          "bg-background fixed inset-x-0 bottom-0 z-[200] max-h-[85vh] overflow-y-auto grid gap-4 rounded-t-2xl border-t p-6 pt-3 shadow-lg will-change-transform",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "duration-300",
+          className
+        )}
+        {...props}
+      >
+        {/* Draggable notch handle */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Drag down to close"
+          className="mx-auto -mt-1 -mb-1 flex w-full max-w-xs cursor-grab items-center justify-center py-2.5 active:cursor-grabbing touch-none select-none"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerCancel}
+        >
+          <div className="h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/50 transition-colors" />
+        </div>
+
+        {children}
+
+        {/* Hidden cancel button to trigger AlertDialog dismiss programmatically */}
+        <AlertDialogPrimitive.Cancel
+          ref={cancelRef}
+          className="hidden"
+          tabIndex={-1}
+          aria-hidden="true"
+        >
+          <span className="sr-only">Cancel</span>
+        </AlertDialogPrimitive.Cancel>
+      </AlertDialogPrimitive.Content>
+    </AlertDialogPortal>
+  )
+}
+
 function AlertDialogContent({
   className,
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
   const isMobile = useIsMobile()
 
   if (isMobile) {
     return (
-      <AlertDialogPortal>
-        <AlertDialogOverlay />
-        <AlertDialogPrimitive.Content
-          data-slot="alert-dialog-content"
-          className={cn(
-            "bg-background fixed inset-x-0 bottom-0 z-[200] mt-24 grid gap-4 rounded-t-2xl border-t p-6 shadow-lg",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-            "duration-300",
-            className
-          )}
-          {...props}
-        >
-          {/* Drag handle indicator */}
-          <div className="mx-auto h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30" />
-          {props.children}
-        </AlertDialogPrimitive.Content>
-      </AlertDialogPortal>
+      <MobileAlertDialogContent className={className} {...props}>
+        {children}
+      </MobileAlertDialogContent>
     )
   }
 

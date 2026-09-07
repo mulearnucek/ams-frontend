@@ -277,13 +277,13 @@ export default function SessionAttendanceMethodsPage() {
   return (
     <div className="min-h-screen p-4 pb-24 sm:pb-20 md:p-8 space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/attendance")}>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/attendance")} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Choose Attendance Method</h1>
-            <p className="text-muted-foreground">Select how you want to mark attendance for this session</p>
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight">Choose Attendance Method</h1>
+            <p className="text-muted-foreground text-sm hidden sm:block">Select how you want to mark attendance for this session</p>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={() => setShareDialogOpen(true)} className="shrink-0 hidden md:flex">
