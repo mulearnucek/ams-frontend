@@ -21,9 +21,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ChevronRight, Eye, Pencil, Trash2, Search, Plus, Upload, ArrowUpCircle } from "lucide-react";
+import { AlertCircle, ChevronRight, Eye, Pencil, Trash2, Search, Plus, Upload, ArrowUpCircle, Download, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
+import { cn, downloadTextFile } from "@/lib/utils";
+import Papa from "papaparse";
 import { AddBatchDialog } from "./add-batch-dialog";
 import { BatchDialog } from "./batch-dialog";
 import { DeleteBatchDialog } from "./delete-batch-dialog";
@@ -31,6 +32,35 @@ import { BulkUploadBatchDialog } from "./bulk-upload-batch-dialog";
 import { AdvanceSemesterDialog } from "./advance-semester-dialog";
 
 const FETCH_LIMIT = 100;
+
+const BATCH_EXPORT_HEADERS = [
+  "Batch ID",
+  "Name",
+  "Admission Year",
+  "Department",
+  "Scheme",
+  "Semester",
+  "Staff Advisor Name",
+  "Staff Advisor Email",
+  "Students Count",
+];
+
+const buildBatchExportRow = (b: Batch): string[] => {
+  const staffAdvisorName = b.staff_advisor
+    ? `${b.staff_advisor.first_name || ""} ${b.staff_advisor.last_name || ""}`.trim() || (b.staff_advisor.name ?? "")
+    : "";
+  return [
+    b.id ?? "",
+    b.name ?? "",
+    String(b.adm_year ?? ""),
+    b.department ?? "",
+    b.scheme ?? "",
+    b.sem ?? "",
+    staffAdvisorName,
+    b.staff_advisor?.email ?? "",
+    String(b.studentCount ?? 0),
+  ];
+};
 
 const getDepartmentBadgeColor = (department: string) => {
   switch (department) {
@@ -179,6 +209,7 @@ export function BatchManagement() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
   // Dialog states
   const [selectedBatch, setSelectedBatch] = useState<Batch | null>(null);
@@ -224,6 +255,7 @@ export function BatchManagement() {
     setDeleteDialogOpen(true);
   };
 
+
   const handleDeleteSuccess = async () => {
     await fetchBatches();
     setSelectedBatch(null);
@@ -240,6 +272,42 @@ export function BatchManagement() {
   const handleAdvanceSuccess = async () => {
     setSelectedIds(new Set());
     await fetchBatches();
+  };
+
+  const handleExportCsv = async (exportList?: Batch[]) => {
+    try {
+      setIsExporting(true);
+      setError(null);
+
+      let listToExport: Batch[];
+      let filenameSuffix = "all";
+
+      if (exportList && exportList.length > 0) {
+        listToExport = exportList;
+        filenameSuffix = `${exportList.length}-selected`;
+      } else {
+        let all: Batch[] = [];
+        let page = 1;
+        while (true) {
+          const res = await listBatches({ page, limit: 100 });
+          all.push(...res.batches);
+          if (page >= res.pagination.totalPages || res.batches.length === 0) break;
+          page++;
+        }
+        listToExport = all.length > 0 ? all : batches;
+      }
+
+      const csv = Papa.unparse({
+        fields: [...BATCH_EXPORT_HEADERS],
+        data: listToExport.map(buildBatchExportRow),
+      });
+
+      downloadTextFile(`ams-batches-${filenameSuffix}-${Date.now()}.csv`, csv + "\n");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to export batches");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const filteredBatches = batches.filter((batch) => {
@@ -316,6 +384,15 @@ export function BatchManagement() {
                   className="pl-8 w-full md:w-62.5"
                 />
               </div>
+              <Button
+                variant="outline"
+                onClick={() => handleExportCsv()}
+                disabled={isExporting || batches.length === 0}
+                className="gap-2"
+              >
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Export CSV
+              </Button>
               <Button variant="outline" onClick={() => setBulkUploadDialogOpen(true)} className="gap-2">
                 <Upload className="h-4 w-4" />
                 Import CSV
@@ -333,6 +410,16 @@ export function BatchManagement() {
                 {selectedIds.size} batch{selectedIds.size === 1 ? "" : "es"} selected
               </span>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportCsv(selectedBatches)}
+                  disabled={isExporting}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Selected ({selectedIds.size})
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
                   Clear
                 </Button>

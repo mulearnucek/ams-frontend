@@ -101,7 +101,15 @@ export function SignInUserAuthForm({ className, redirectUrl, emailSigninEnabled,
                 <FormItem>
                   <FormLabel className="sr-only">Email</FormLabel>
                   <FormControl>
-                    <Input placeholder="name@uck.ac.in" {...field} disabled={isLoading} />
+                    <Input
+                      type="email"
+                      placeholder="name@example.com"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      autoCorrect="off"
+                      disabled={isLoading}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

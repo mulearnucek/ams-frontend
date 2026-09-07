@@ -12,6 +12,7 @@ import { listSubjects, type Subject } from "@/lib/api/subject";
 import { format, setHours, setMinutes, setSeconds, setMilliseconds } from "date-fns";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useIsGeneralDept } from "@/lib/departments";
 
 interface CreateClassDialogProps {
   onClassCreated?: () => void;
@@ -32,7 +33,10 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
   const [startHour, setStartHour] = useState<number>(new Date().getHours());
   const [sessionType, setSessionType] = useState<SessionType>("regular");
   const { user } = useAuth();
-  const teacherDept = (user?.profile as any)?.department;
+  const teacherDept = (user?.profile as any)?.department as string | undefined;
+  // A teacher in the "general" department (e.g. GEN) teaches all batches.
+  // The general-dept code is read from config — not hardcoded.
+  const isGeneralDept = useIsGeneralDept(teacherDept);
 
   useEffect(() => {
     if (open) {
@@ -46,13 +50,13 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
     }
   }, [open]);
 
-  const isValidDept = ["CSE", "ECE", "IT", "GEN"].includes(teacherDept);
-  const isGeneralDept = teacherDept === "GEN";
+
 
   const loadData = async () => {
     setLoadingData(true);
     try {
-      const filterDept = (isValidDept && !isGeneralDept) ? teacherDept : undefined;
+      // GEN teachers see all batches; others are filtered to their own dept.
+      const filterDept = isGeneralDept ? undefined : teacherDept;
       const batchesData = await listBatches({ limit: 100, department: filterDept });
       setBatches(batchesData.batches);
     } catch (error) {
@@ -77,10 +81,12 @@ export default function CreateClassDialog({ onClassCreated }: CreateClassDialogP
       try {
         const selectedBatch = batches.find((b) => b._id === batchId);
         if (selectedBatch) {
-          const dept = isGeneralDept ? "GEN" : selectedBatch.department;
+          // Always filter subjects by the batch's own department + sem + scheme.
+          // GEN teachers teach the curriculum of whatever batch they select —
+          // there is no separate "GEN" subject pool.
           const subjectsData = await listSubjects({
             limit: 100,
-            department: dept,
+            department: selectedBatch.department,
             sem: selectedBatch.sem,
             scheme: selectedBatch.scheme,
           });

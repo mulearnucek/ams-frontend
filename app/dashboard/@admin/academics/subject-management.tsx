@@ -20,9 +20,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ChevronRight, Eye, Pencil, Trash2, Plus, Upload } from "lucide-react";
+import { AlertCircle, ChevronRight, Eye, Pencil, Trash2, Plus, Upload, Download, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
+import { cn, downloadTextFile } from "@/lib/utils";
+import Papa from "papaparse";
 import { AddSubjectDialog } from "./add-subject-dialog";
 import { SubjectDialog } from "./subject-dialog";
 import { DeleteSubjectDialog } from "./delete-subject-dialog";
@@ -30,6 +31,28 @@ import { BulkUploadSubjectDialog } from "./bulk-upload-subject-dialog";
 
 const SEMESTERS = Array.from({ length: 8 }, (_, i) => i + 1);
 const FETCH_LIMIT = 100;
+
+const SUBJECT_EXPORT_HEADERS = [
+  "Name",
+  "Sem",
+  "Subject Code",
+  "Type",
+  "Total Marks",
+  "Pass Mark",
+  "Scheme",
+  "Department",
+];
+
+const buildSubjectExportRow = (s: Subject): string[] => [
+  s.name ?? "",
+  s.sem ?? "",
+  s.subject_code ?? "",
+  s.type ?? "",
+  String(s.total_marks ?? ""),
+  String(s.pass_mark ?? ""),
+  s.scheme ?? "",
+  s.department ?? "",
+];
 
 export function SubjectManagement() {
   const [schemes, setSchemes] = useState<string[]>([]);
@@ -41,6 +64,8 @@ export function SubjectManagement() {
   const [subjectsBySem, setSubjectsBySem] = useState<Record<number, Subject[]>>({});
   const [loadingSems, setLoadingSems] = useState<Set<number>>(new Set());
   const [semErrors, setSemErrors] = useState<Record<number, string>>({});
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Dialog states
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -151,6 +176,38 @@ export function SubjectManagement() {
     refreshOpenSems();
   };
 
+  const handleExportCsv = async () => {
+    try {
+      setIsExporting(true);
+      setExportError(null);
+
+      let all: Subject[] = [];
+      let page = 1;
+      while (true) {
+        const res = await listSubjects({
+          scheme: selectedScheme || undefined,
+          page,
+          limit: 100,
+        });
+        all.push(...res.subjects);
+        if (page >= res.pagination.totalPages || res.subjects.length === 0) break;
+        page++;
+      }
+
+      const csv = Papa.unparse({
+        fields: [...SUBJECT_EXPORT_HEADERS],
+        data: all.map(buildSubjectExportRow),
+      });
+
+      const schemeLabel = selectedScheme ? `scheme-${selectedScheme}` : "all";
+      downloadTextFile(`ams-subjects-${schemeLabel}-${Date.now()}.csv`, csv + "\n");
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Failed to export subjects");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const getTypeBadgeColor = (type: string) => {
     return type === "Theory"
       ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
@@ -167,6 +224,15 @@ export function SubjectManagement() {
               <CardDescription>Manage course subjects, grouped by scheme and semester</CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleExportCsv}
+                disabled={isExporting || schemesLoading}
+                className="gap-2"
+              >
+                {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Export CSV
+              </Button>
               <Button variant="outline" onClick={() => setBulkUploadDialogOpen(true)} className="gap-2">
                 <Upload className="h-4 w-4" />
                 Import CSV
@@ -179,10 +245,10 @@ export function SubjectManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          {schemesError && (
+          {(schemesError || exportError) && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{schemesError}</AlertDescription>
+              <AlertDescription>{schemesError || exportError}</AlertDescription>
             </Alert>
           )}
 

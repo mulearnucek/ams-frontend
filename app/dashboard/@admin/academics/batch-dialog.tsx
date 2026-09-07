@@ -7,6 +7,7 @@ import * as z from "zod";
 import { Batch, updateBatchById, isKnownPopulateResponseIssue, getUnknownErrorMessage, isAlumniSem } from "@/lib/api/batch";
 import { listUsers } from "@/lib/api/user";
 import type { User } from "@/lib/types/UserTypes";
+import { useDepartments } from "@/lib/departments";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +70,7 @@ const updateBatchSchema = z.object({
     .or(z.literal("")),
   name: z.string().min(1, "Batch name is required"),
   adm_year: z.number().min(2000).max(2100),
-  department: z.enum(["CSE", "ECE", "IT"] as const),
+  department: z.string().min(1, "Department is required"),
   staff_advisor: z.string().min(1, "Staff advisor is required"),
   scheme: z.string().min(1, "Scheme is required"),
   sem: z.string().min(1, "Semester is required"),
@@ -131,12 +132,14 @@ export function BatchDialog({
       id:            "",
       name:          "",
       adm_year:      new Date().getFullYear(),
-      department:    "CSE",
+      department:    "",
       staff_advisor: "",
       scheme:        "",
       sem:           "",
     },
   });
+
+  const departments = useDepartments();
 
   const watchedDepartment = form.watch("department");
   const watchedAdmYear    = form.watch("adm_year");
@@ -413,9 +416,9 @@ export function BatchDialog({
                               <SelectTrigger><SelectValue /></SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="CSE">CSE</SelectItem>
-                              <SelectItem value="ECE">ECE</SelectItem>
-                              <SelectItem value="IT">IT</SelectItem>
+                              {departments.map((d) => (
+                                <SelectItem key={d.code} value={d.code}>{d.name || d.code}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />

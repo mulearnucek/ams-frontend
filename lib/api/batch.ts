@@ -5,7 +5,8 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-export type Department = 'CSE' | 'ECE' | 'IT';
+// Widened from 'CSE' | 'ECE' | 'IT' — departments are now config-driven and not hardcoded.
+export type Department = string;
 
 export interface StaffAdvisor {
   _id: string;

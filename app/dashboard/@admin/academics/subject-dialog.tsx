@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Subject, updateSubjectById } from "@/lib/api/subject";
+import { useDepartments } from "@/lib/departments";
 import {
   Dialog,
   DialogContent,
@@ -71,9 +72,11 @@ export function SubjectDialog({ subject, open, onOpenChange, mode, onSuccess }: 
       total_marks: 100,
       pass_mark: 40,
       scheme: "",
-      department: "CSE",
+      department: "",
     },
   });
+
+  const departments = useDepartments();
 
   useEffect(() => {
     if (open && subject) {
@@ -84,7 +87,7 @@ export function SubjectDialog({ subject, open, onOpenChange, mode, onSuccess }: 
         total_marks: subject.total_marks,
         pass_mark: subject.pass_mark,
         scheme: subject.scheme || "",
-        department: subject.department || "CSE",
+        department: subject.department || "",
       });
     }
   }, [open, subject, form]);
@@ -309,9 +312,9 @@ export function SubjectDialog({ subject, open, onOpenChange, mode, onSuccess }: 
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="CSE">CSE</SelectItem>
-                          <SelectItem value="ECE">ECE</SelectItem>
-                          <SelectItem value="IT">IT</SelectItem>
+                          {departments.map((d) => (
+                            <SelectItem key={d.code} value={d.code}>{d.name || d.code}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

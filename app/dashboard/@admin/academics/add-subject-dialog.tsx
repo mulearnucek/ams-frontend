@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createSubject } from "@/lib/api/subject";
+import { useDepartments } from "@/lib/departments";
 import {
   Dialog,
   DialogContent,
@@ -70,9 +71,11 @@ export function AddSubjectDialog({ open, onOpenChange, onSuccess }: AddSubjectDi
       total_marks: 100,
       pass_mark: 40,
       scheme: "",
-      department: "CSE",
+      department: "",
     },
   });
+
+  const departments = useDepartments();
 
   const handleDialogChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -265,9 +268,9 @@ export function AddSubjectDialog({ open, onOpenChange, onSuccess }: AddSubjectDi
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="CSE">CSE</SelectItem>
-                        <SelectItem value="ECE">ECE</SelectItem>
-                        <SelectItem value="IT">IT</SelectItem>
+                        {departments.map((d) => (
+                          <SelectItem key={d.code} value={d.code}>{d.name || d.code}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

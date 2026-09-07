@@ -21,8 +21,11 @@ export const FLAGS = {
   /** Controls the assignments list (/dashboard/assignments route). */
   ASSIGNMENTS: "feature/assignments",
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Academics ───────────────────────────────────────────────────────────────
+  DEPARTMENTS: "academics/departments",
+  GENERAL_DEPT: "academics/general_department",
 
+  // ── Auth ────────────────────────────────────────────────────────────────────
   GOOGLE_SIGNIN: "auth/google-signin",   // Show/hide the Google sign-in button
   EMAIL_SIGNIN: "auth/email-signin",     // Show/hide the email + password form
   SIGNUP: "auth/signup",                 // Allow students to self-onboard without a pre-assigned batch

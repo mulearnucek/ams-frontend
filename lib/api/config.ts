@@ -8,13 +8,14 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 export interface ConfigItem {
     _id: string;
     key: string;
-    value: string | number | boolean | Array<string | number | boolean>;
+    value: ConfigValue;
     description: string;
     createdAt: string;
     updatedAt: string;
 }
 
-export type ConfigValue = string | number | boolean | Array<string | number | boolean>;
+// Widened to allow object values (e.g. departments array: [{code,name},...])
+export type ConfigValue = string | number | boolean | object | Array<unknown>;
 
 export interface ConfigMap {
     [key: string]: ConfigValue;

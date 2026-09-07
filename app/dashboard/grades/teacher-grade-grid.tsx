@@ -35,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertCircle, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { AlertCircle, BookOpen, Download, Eye, EyeOff, Pencil, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { getRecentUniqueSessions, type UniqueSession } from "@/lib/api/attendance-session";
 import { getGradeMatrix, bulkUpsertGradeEntries, type UpsertGradeEntryInput } from "@/lib/api/grade-entry";
 import { deleteGradeField, syncAttendanceGradeField, updateGradeField } from "@/lib/api/grade-field";
@@ -443,12 +443,21 @@ export function TeacherGradeGrid() {
 
   if (sessions.length === 0) {
     return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          You haven&apos;t taken any attendance sessions yet — teach a class first, then its subject will appear here.
-        </AlertDescription>
-      </Alert>
+      <div className="flex flex-col items-center justify-center min-h-[520px] w-full rounded-2xl border border-dashed border-border bg-muted/30 py-20 px-6 text-center gap-6">
+        {/* Large decorative icon */}
+        <div className="flex items-center justify-center rounded-full bg-muted/60 p-8 shadow-inner">
+          <BookOpen className="h-24 w-24 text-muted-foreground/40" strokeWidth={1.2} />
+        </div>
+
+        <div className="space-y-2 max-w-md">
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">
+            No Sessions Found
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            You haven&apos;t taken any attendance sessions yet.
+          </p>
+        </div>
+      </div>
     );
   }
 

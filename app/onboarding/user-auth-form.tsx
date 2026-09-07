@@ -15,13 +15,9 @@ import { useAuth } from '@/lib/auth-context';
 import type { User } from '@/lib/types/UserTypes';
 import { FLAGS } from '@/lib/flags';
 import Image from 'next/image';
+import { useDepartments } from '@/lib/departments';
 
 
-const departments = [
-  { value: 'CSE', label: 'CSE' },
-  { value: 'ECE', label: 'ECE' },
-  { value: 'IT', label: 'IT' }
-];
 
 type FormData = {
   firstName: string;
@@ -270,6 +266,10 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
   const {user, incompleteProfile, isLoading : isPending, session, refetchUser, config} = useAuth();
 
   const signupEnabled = config[FLAGS.SIGNUP] !== false;
+
+  // Departments from config — students exclude the general (GEN) dept.
+  const studentDepts = useDepartments({ excludeGeneral: true }).map((d) => ({ value: d.code, label: d.name || d.code }));
+  const staffDepts   = useDepartments().map((d) => ({ value: d.code, label: d.name || d.code }));
 
   // Refactor locking logic to be based on the `user` object from context,
   // which is the single source of truth for the user's current state.
@@ -682,7 +682,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
                   )}
                 </div>
                 {!locked.department ? (
-                  <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
+                  <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder={studentDepts.length === 0 ? "No departments configured" : "Select department"} options={studentDepts} onValueChange={(value) => handleInputChange('department', value)} />
                 ) : (
                   <FormField id="department" label="Department" placeholder="Department" value={formData.department} error={errors.department} disabled={locked.department} onChange={handleInputEvent} />
                 )}
@@ -691,7 +691,7 @@ export function SignUpUserAuthForm({ className, ...props }: UserAuthFormProps) {
             ) : user?.role === 'teacher' ? (
               <>
                 <FormField id="designation" label="Designation" placeholder="e.g., Assistant Professor" value={formData.designation} error={errors.designation} onChange={handleInputEvent} />
-                <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder="Select department" options={departments} onValueChange={(value) => handleInputChange('department', value)} />
+                <SelectField id="department" label="Department" value={formData.department} error={errors.department} placeholder={staffDepts.length === 0 ? "No departments configured" : "Select department"} options={staffDepts} onValueChange={(value) => handleInputChange('department', value)} />
                 <FormField id="dateOfJoining" label="Date of Joining" type="date" value={formData.dateOfJoining} error={errors.dateOfJoining} onChange={handleInputEvent} />
               </>
             ) : user?.role === 'parent' ? (

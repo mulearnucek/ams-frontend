@@ -127,7 +127,7 @@ const ROLES: Array<{ value: UserRole; label: string }> = [
 
 function toDepartment(value: string | undefined): Department | undefined {
   const v = (value || "").trim().toUpperCase();
-  if (v === "CSE" || v === "ECE" || v === "IT") return v as Department;
+  if (v === "CSE" || v === "ECE" || v === "IT" || v === "GEN") return v as Department;
   return undefined;
 }
 

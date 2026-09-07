@@ -1,6 +1,7 @@
 export type UserRole = "student" | "teacher" | "parent" | "principal" | "hod" | "staff" | "admin";
 export type Gender = "male" | "female" | "other";
-export type Department = "CSE" | "ECE" | "IT";
+// Widened from 'CSE' | 'ECE' | 'IT' | 'GEN' — departments are config-driven (see academics/departments config key).
+export type Department = string;
 
 export type ParentRelation = "mother" | "father" | "guardian";
 

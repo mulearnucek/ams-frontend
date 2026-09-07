@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { getUserById, updateUserById } from "@/lib/api/user";
+import { getUserById, updateUserById, deleteUserById } from "@/lib/api/user";
 import { User, UpdateUserData } from "@/lib/types/UserTypes";
 import {
   Dialog,
@@ -45,12 +45,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Check, ChevronRight, Copy, KeyRound, Loader2, LogOut, Pencil, ShieldAlert, ShieldCheck, X } from "lucide-react";
+import { Check, ChevronRight, Copy, KeyRound, Loader2, LogOut, Pencil, ShieldAlert, ShieldCheck, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
 import { ResetPasswordDialog } from "./reset-password-dialog";
 import { BanUserDialog } from "./ban-user-dialog";
+import { DeleteUserDialog } from "./delete-user-dialog";
 
 // ─── Form Schema ──────────────────────────────────────────────────────────────
 
@@ -101,6 +102,8 @@ export function UserDialog({
   const [banDialogOpen, setBanDialogOpen] = useState(false);
   const [isUnbanning, setIsUnbanning] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [childDialogOpen, setChildDialogOpen] = useState(false);
   const [fullUser, setFullUser] = useState<User>(user);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
@@ -132,12 +135,44 @@ export function UserDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user._id]);
 
+  const refreshUserDetails = useCallback(async () => {
+    try {
+      const detail = await getUserById(user._id);
+      setFullUser(detail);
+    } catch (err) {
+      console.error("Failed to refresh user details", err);
+    }
+  }, [user._id]);
+
+  useEffect(() => {
+    if (!open) return;
+    setFullUser((prev) => {
+      if (prev._id !== user._id) return prev;
+      if (prev.banned !== user.banned) {
+        return {
+          ...prev,
+          banned: user.banned,
+          banReason: user.banReason,
+          banExpires: user.banExpires,
+        };
+      }
+      return prev;
+    });
+  }, [open, user._id, user.banned, user.banReason, user.banExpires]);
+
   const handleUnban = async () => {
     try {
       setIsUnbanning(true);
       await authClient.admin.unbanUser({ userId: fullUser._id });
+      setFullUser((prev) => ({
+        ...prev,
+        banned: false,
+        banReason: undefined,
+        banExpires: undefined,
+      }));
       toast.success(`${fullUser.name} has been unbanned.`);
       onSuccess?.();
+      await refreshUserDetails();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to unban user");
     } finally {
@@ -154,6 +189,21 @@ export function UserDialog({
       toast.error(err instanceof Error ? err.message : "Failed to revoke sessions");
     } finally {
       setIsRevoking(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteUserById(fullUser._id);
+      toast.success(`${fullUser.name} has been deleted.`);
+      setDeleteDialogOpen(false);
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -324,110 +374,93 @@ export function UserDialog({
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 flex-1 overflow-hidden">
 
               {/* ── Left Column: Avatar & Quick Info ── */}
-              <div className="flex flex-col gap-4 overflow-y-auto pr-1">
-                <div className="relative flex flex-col items-center text-center p-6 border rounded-lg bg-muted/30">
-
-                  <Avatar className="h-32 w-32 mb-4">
+              <div className="flex flex-col gap-2.5 overflow-y-auto pr-1">
+                <div className="relative flex flex-col items-center text-center p-3.5 border rounded-lg bg-muted/30">
+                  <Avatar className="h-16 w-16 mb-2">
                     <AvatarImage src={fullUser.image} alt={fullUser.name} />
-                    <AvatarFallback className="text-2xl">{getInitials(fullUser.name)}</AvatarFallback>
+                    <AvatarFallback className="text-lg font-semibold">{getInitials(fullUser.name)}</AvatarFallback>
                   </Avatar>
-                  <h3 className="text-2xl font-semibold mb-1">{fullUser.name}</h3>
+                  <h3 className="text-base font-semibold leading-tight">{fullUser.name}</h3>
                   <div
-                    className="group relative flex items-center gap-2 cursor-pointer hover:bg-muted/50 px-2 py-1 round transition-colors"
+                    className="group relative flex items-center gap-1 cursor-pointer hover:bg-muted/50 px-1.5 py-0.5 rounded transition-colors mt-0.5"
                     onClick={() => navigator.clipboard.writeText(fullUser.email)}
                     title="Click to copy email"
                   >
-                    <p className="text-muted-foreground break-all text-sm">{fullUser.email}</p>
+                    <p className="text-muted-foreground break-all text-xs">{fullUser.email}</p>
                   </div>
-                  <Badge variant="outline" className="mt-3 text-md px-4 py-1 capitalize">
-                    {fullUser.role}
-                  </Badge>
-                  {isLoadingDetail && (
-                    <Badge variant="outline" className="mt-2 gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Loading details…
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 mt-2">
+                    <Badge variant="outline" className="text-xs px-2.5 py-0.5 capitalize">
+                      {fullUser.role}
                     </Badge>
-                  )}
-                  {isProfileIncomplete && (
-                    <Badge variant="secondary" className="mt-2">
-                      Profile Incomplete
-                    </Badge>
-                  )}
-                  {fullUser.banned && (
-                    <Badge variant="destructive" className="mt-2">
-                      Banned{fullUser.banReason ? `: ${fullUser.banReason}` : ""}
-                    </Badge>
-                  )}
+                    {isLoadingDetail && (
+                      <Badge variant="outline" className="text-xs px-2 py-0.5 gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+                      </Badge>
+                    )}
+                    {isProfileIncomplete && (
+                      <Badge variant="secondary" className="text-xs px-2 py-0.5">
+                        Profile Incomplete
+                      </Badge>
+                    )}
+                    {fullUser.banned && (
+                      <Badge variant="destructive" className="text-xs px-2 py-0.5">
+                        Banned{fullUser.banReason ? `: ${fullUser.banReason}` : ""}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
                 {/* Account Meta */}
-                <div className="border rounded-lg p-4 space-y-3">
-                  <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground border-b pb-2">
+                <div className="border rounded-lg p-2.5 space-y-0.5">
+                  <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground border-b pb-1 mb-1 px-1">
                     Account Meta
                   </h4>
-                  <div className="space-y-2 text-sm">
-                    <InfoItem label="User ID"    value={fullUser._id} />
-                    <InfoItem label="Created At" value={formatDate(fullUser.createdAt)} />
-                    <InfoItem label="Updated At" value={formatDate(fullUser.updatedAt)} />
-                  </div>
+                  <InfoItem label="User ID"    value={fullUser._id} compact />
+                  <InfoItem label="Created At" value={formatDate(fullUser.createdAt)} compact />
+                  <InfoItem label="Updated At" value={formatDate(fullUser.updatedAt)} compact />
                 </div>
 
-                {/* Edit / Reset Password Buttons */}
+                {/* Actions Card */}
                 {!isEditing && (
-                  <div className="flex flex-col gap-2 mt-2">
+                  <div className="border rounded-lg p-2.5 space-y-1.5">
+                    <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground border-b pb-1 mb-1 px-1">
+                      Actions
+                    </h4>
                     <Button
                       variant="outline"
-                      className="w-full"
+                      size="sm"
+                      className="w-full h-8.5 justify-start text-xs font-medium"
                       onClick={() => setIsEditing(true)}
                       type="button"
                       disabled={isLoadingDetail}
                     >
-                      <Pencil className="mr-2 h-4 w-4" />
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
                       Edit User
                     </Button>
                     <Button
                       variant="outline"
-                      className="w-full"
+                      size="sm"
+                      className="w-full h-8.5 justify-start text-xs font-medium"
                       onClick={() => setResetPasswordOpen(true)}
                       type="button"
                     >
-                      <KeyRound className="mr-2 h-4 w-4" />
+                      <KeyRound className="mr-2 h-3.5 w-3.5" />
                       Reset Password
                     </Button>
 
-                    {fullUser.banned ? (
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleUnban}
-                        disabled={isUnbanning}
-                        type="button"
-                      >
-                        {isUnbanning ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                        )}
-                        Unban User
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="w-full text-destructive hover:text-destructive"
-                        onClick={() => setBanDialogOpen(true)}
-                        type="button"
-                      >
-                        <ShieldAlert className="mr-2 h-4 w-4" />
-                        Ban User
-                      </Button>
-                    )}
-
-                    <AlertDialog>
+                        <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" className="w-full" type="button" disabled={isRevoking}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8.5 justify-start text-xs font-medium"
+                          type="button"
+                          disabled={isRevoking}
+                        >
                           {isRevoking ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <LogOut className="mr-2 h-4 w-4" />
+                            <LogOut className="mr-2 h-3.5 w-3.5" />
                           )}
                           Revoke Sessions
                         </Button>
@@ -446,6 +479,52 @@ export function UserDialog({
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
+
+
+                    {fullUser.banned ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8.5 justify-start text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                        onClick={handleUnban}
+                        disabled={isUnbanning}
+                        type="button"
+                      >
+                        {isUnbanning ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="mr-2 h-3.5 w-3.5" />
+                        )}
+                        Unban User
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8.5 justify-start text-xs font-medium text-destructive hover:text-destructive"
+                        onClick={() => setBanDialogOpen(true)}
+                        type="button"
+                      >
+                        <ShieldAlert className="mr-2 h-3.5 w-3.5" />
+                        Ban User
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-8.5 justify-start text-xs font-medium text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setDeleteDialogOpen(true)}
+                      type="button"
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="mr-2 h-3.5 w-3.5" />
+                      )}
+                      Delete User
+                    </Button>
                   </div>
                 )}
               </div>
@@ -827,7 +906,21 @@ export function UserDialog({
         userName={fullUser.name}
         open={banDialogOpen}
         onOpenChange={setBanDialogOpen}
-        onSuccess={onSuccess}
+        onSuccess={async () => {
+          setFullUser((prev) => ({
+            ...prev,
+            banned: true,
+          }));
+          onSuccess?.();
+          await refreshUserDetails();
+        }}
+      />
+
+      <DeleteUserDialog
+        user={fullUser}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDeleteUser}
       />
 
       {childAsUser && (
@@ -844,7 +937,7 @@ export function UserDialog({
 
 // ─── InfoItem ─────────────────────────────────────────────────────────────────
 
-function InfoItem({ label, value }: { label: string; value?: string }) {
+function InfoItem({ label, value, compact }: { label: string; value?: string; compact?: boolean }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -858,14 +951,15 @@ function InfoItem({ label, value }: { label: string; value?: string }) {
     <div
       onClick={handleCopy}
       className={cn(
-        "space-y-1 px-3 py-2 rounded-md transition-colors group relative select-none",
+        compact ? "px-2 py-1 rounded" : "space-y-1 px-3 py-2 rounded-md",
+        "transition-colors group relative select-none",
         value && value !== "N/A"
           ? "cursor-pointer hover:bg-muted/50 active:bg-muted"
           : "cursor-default"
       )}
       title={value && value !== "N/A" ? "Click to copy" : undefined}
     >
-      <div className="flex justify-between items-center text-xs font-medium text-muted-foreground uppercase tracking-wide">
+      <div className={cn("flex justify-between items-center font-medium text-muted-foreground uppercase tracking-wide", compact ? "text-[10px]" : "text-xs")}>
         <span>{label}</span>
         {value && value !== "N/A" && (
           <span
@@ -882,7 +976,7 @@ function InfoItem({ label, value }: { label: string; value?: string }) {
           </span>
         )}
       </div>
-      <p className="text-sm font-medium break-all">{value || "N/A"}</p>
+      <p className={cn(compact ? "text-xs" : "text-sm", "font-medium break-all")}>{value || "N/A"}</p>
     </div>
   );
 }
