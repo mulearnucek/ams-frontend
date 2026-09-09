@@ -144,7 +144,7 @@ export default function UsersPage() {
           try {
              // Fetch all staff for sorting, assuming total staff is manageable.
             // API sorting is not used here because we merge results from multiple roles.
-            const data = await listUsers({ role, page: 1, limit: 200, search: activeSearch || undefined });
+            const data = await listUsers({ role, page: 1, limit: 100, search: activeSearch || undefined });
             allStaffUsers.push(...data.users);
           } catch (err) { console.error(err); }
         }
