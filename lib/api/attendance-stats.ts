@@ -27,6 +27,7 @@ export interface ClassReportSession {
   start_time: string;
   end_time: string;
   session_type: string;
+  hours_taken?: number;
 }
 
 export interface ClassReportStudent {

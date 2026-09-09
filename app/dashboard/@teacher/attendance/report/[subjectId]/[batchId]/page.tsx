@@ -153,12 +153,18 @@ export default function ClassReportPage() {
                           <TooltipTrigger asChild>
                             <div className="flex flex-col items-center cursor-help">
                               <span>{format(new Date(session.start_time), "dd/MM")}</span>
+                              {session.hours_taken && session.hours_taken > 1 ? (
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  {session.hours_taken}h
+                                </span>
+                              ) : null}
                             </div>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="font-medium">{format(new Date(session.start_time), "MMM dd, yyyy")}</p>
                             <p className="text-xs text-muted-foreground mt-1">
                               {format(new Date(session.start_time), "hh:mm a")} - {format(new Date(session.end_time), "hh:mm a")}
+                              {session.hours_taken ? ` (${session.hours_taken} ${session.hours_taken === 1 ? "hr" : "hrs"})` : ""}
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -209,9 +215,14 @@ export default function ClassReportPage() {
                       );
                     })}
                     <td className="px-4 py-3 text-center font-bold md:sticky md:right-0 md:z-10 md:bg-background md:shadow-[-4px_0_12px_rgba(0,0,0,0.05)]">
-                      <span className={student.percentage < 75 ? "text-red-600" : student.percentage >= 90 ? "text-green-600" : ""}>
-                        {student.percentage}%
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span className={student.percentage < 75 ? "text-red-600" : student.percentage >= 90 ? "text-green-600" : ""}>
+                          {student.percentage}%
+                        </span>
+                        <span className="text-[10px] font-normal text-muted-foreground">
+                          {student.totalPresent}/{student.totalSessions} hrs
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 ))}
